@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\CustomerController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -19,6 +20,10 @@ Route::get('/test', function () {
 //
 Route::prefix('businesses/{business}')->group(function () {
 
+    /*==================
+    SERVICES SECTION 
+    ====================*/
+
     //show the multiple services for a specific business
     Route::get('services', [ServiceController::class, 'index']);
 
@@ -33,4 +38,23 @@ Route::prefix('businesses/{business}')->group(function () {
 
     //delete a specific service for a specific business
     Route::delete('services/{service}', [ServiceController::class, 'destroy']);
+
+    /*==================
+    CUSTOMERS SECTION 
+    ====================*/
+
+    //show the multiple customers for a specific business
+    Route::get('customers', [CustomerController::class, 'index']);
+
+    //create a new customer for a specific business
+    Route::post('customers', [CustomerController::class, 'store']);
+
+    //show a specific customer for a specific business
+    Route::get('customers/{customer}', [CustomerController::class, 'show']);
+
+    //update a specific customer for a specific business
+    Route::put('customers/{customer}', [CustomerController::class, 'update']);
+
+    //delete a specific customer for a specific business
+    Route::delete('customers/{customer}', [CustomerController::class, 'destroy']);
 });
