@@ -23,11 +23,13 @@ class Customer extends Model
             RELATIONSHIPS SECTION
     ============================================*/
 
+    // A customer belongs to a specific business
     public function business()
     {
         return $this->belongsTo(Business::class);
     }
 
+    // A customer can have many appointments
     public function appointments()
     {
         return $this->hasMany(Appointment::class);
