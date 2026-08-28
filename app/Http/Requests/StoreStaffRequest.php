@@ -31,18 +31,6 @@ class StoreStaffRequest extends FormRequest
                 'exists:users,id',
             ],
 
-            'first_name' => [
-                'required',
-                'string',
-                'max:100',
-            ],
-
-            'last_name' => [
-                'required',
-                'string',
-                'max:100',
-            ],
-
             'phone' => [
                 'nullable',
                 'string',

@@ -30,20 +30,6 @@ class UpdateStaffRequest extends FormRequest
                 'exists:users,id',
             ],
 
-            'first_name' => [
-                'sometimes',
-                'required',
-                'string',
-                'max:100',
-            ],
-
-            'last_name' => [
-                'sometimes',
-                'required',
-                'string',
-                'max:100',
-            ],
-
             'phone' => [
                 'sometimes',
                 'nullable',
