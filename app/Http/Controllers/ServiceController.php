@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateServiceRequest;
 
 class ServiceController extends Controller
 {
+    //obtain the list of services for a specific business
     public function index(Business $business)
     {
         return response()->json(

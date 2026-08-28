@@ -9,6 +9,8 @@ use App\Http\Requests\UpdateCustomerRequest;
 
 class CustomerController extends Controller
 {
+
+    //obtain the list of customers for a specific business
     public function index(Business $business)
     {
         return response()->json(
