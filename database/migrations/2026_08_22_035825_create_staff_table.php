@@ -25,11 +25,7 @@ return new class extends Migration
                 ->constrained('users')
                 ->nullOnDelete();
 
-            $table->string('first_name');
-            $table->string('last_name');
-
             $table->string('phone', 30)->nullable();
-            $table->string('email')->nullable();
 
             $table->string('position')->nullable();
             $table->string('photo')->nullable();

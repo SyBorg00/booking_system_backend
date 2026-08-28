@@ -13,10 +13,7 @@ class Staff extends Model
     protected $fillable = [
         'business_id',
         'user_id',
-        'first_name',
-        'last_name',
         'phone',
-        'email',
         'position',
         'photo',
         'status',

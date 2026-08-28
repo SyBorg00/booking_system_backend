@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\StaffController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -57,4 +58,22 @@ Route::prefix('businesses/{business}')->group(function () {
 
     //delete a specific customer for a specific business
     Route::delete('customers/{customer}', [CustomerController::class, 'destroy']);
+
+    /*==================
+    STAFF SECTION 
+    ====================*/
+    //fetch the list of staff for a specific business
+    Route::get('staff', [StaffController::class, 'index']);
+
+    //create a new staff member for a specific business
+    Route::post('staff', [StaffController::class, 'store']);
+
+    //show a specific staff member for a specific business
+    Route::get('staff/{staff}', [StaffController::class, 'show']);
+
+    //update a specific staff member for a specific business
+    Route::put('staff/{staff}', [StaffController::class, 'update']);
+
+    //delete a specific staff member for a specific business
+    Route::delete('staff/{staff}', [StaffController::class, 'destroy']);
 });
