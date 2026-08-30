@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class StaffTimeOff extends Model
 {
     use HasFactory;
-    protected $table = 'staff_time_off';
+    protected $table = 'staff_time_offs';
 
     protected $fillable = [
         'staff_id',
