@@ -51,4 +51,16 @@ class Service extends Model
     {
         return $this->hasMany(AppointmentService::class);
     }
+
+    public function appointments()
+    {
+        return $this->belongsToMany(Appointment::class, 'appointment_services')
+            ->withPivot([
+                'price',
+                'currency',
+                'duration_minutes',
+                'buffer_minutes'
+            ])
+            ->withTimestamps();
+    }
 }

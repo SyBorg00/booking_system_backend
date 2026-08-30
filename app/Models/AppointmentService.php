@@ -17,11 +17,13 @@ class AppointmentService extends Model
         'service_id',
         'price',
         'duration_minutes',
+        'buffer_minutes'
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
         'duration_minutes' => 'integer',
+        'buffer_minutes' => 'integer',
     ];
 
     /*==========================================
