@@ -25,7 +25,7 @@ class StaffHourController extends Controller
         );
 
         return response()->json(
-            $staff->staffHours()
+            $staff->hours()
                 ->orderBy('day_of_week')
                 ->get()
         );
@@ -42,7 +42,7 @@ class StaffHourController extends Controller
             404
         );
 
-        $staffHour = $staff->staffHours()->create(
+        $staffHour = $staff->hours()->create(
             $request->validated()
         );
 

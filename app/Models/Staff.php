@@ -45,13 +45,13 @@ class Staff extends Model
     }
 
     //load the staff hours that the staff has
-    public function staffHours()
+    public function hours()
     {
         return $this->hasMany(StaffHour::class);
     }
 
     //load the staff time off that the staff has taken
-    public function timeOff()
+    public function timeOffs()
     {
         return $this->hasMany(StaffTimeOff::class);
     }
