@@ -61,8 +61,10 @@ class Appointment extends Model
             'appointment_services'
         )->withPivot([
             'price',
-            'duration_minutes',
             'currency',
-        ]);
+            'duration_minutes',
+            'buffer_minutes',
+        ])
+            ->withTimestamps();
     }
 }
