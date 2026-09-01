@@ -6,6 +6,8 @@ use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\StaffHourController;
+use App\Http\Controllers\StaffTimeOffController;
+use App\Http\Controllers\AvailabilityController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -19,7 +21,9 @@ Route::get('/test', function () {
 });
 
 
-//
+/*========================
+BUSINESS PREFIX SECTION 
+==========================*/
 Route::prefix('businesses/{business}')->group(function () {
 
     /*==================
@@ -96,4 +100,27 @@ Route::prefix('businesses/{business}')->group(function () {
 
     //delete a specific staff hour for a specific staff member
     Route::delete('staff/{staff}/hours/{staffHour}', [StaffHourController::class, 'destroy']);
+
+    /*==================
+    STAFF TIME-OFFS SECTION 
+    ====================*/
+    //fetch time-offs of a specific staff member
+    Route::get('staff/{staff}/time-offs', [StaffTimeOffController::class, 'index']);
+
+    //create a new staff time-off from a specific staff member
+    Route::post('staff/{staff}/time-offs', [StaffTimeOffController::class, 'store']);
+
+    //fetch a specific time-off record from a specific staff member
+    Route::get('staff/{staff}/time-offs/{staffTimeOff}', [StaffTimeOffController::class, 'show']);
+
+    //update a specific time-off record from a specific staff member
+    Route::put('staff/{staff}/time-offs/{staffTimeOff}', [StaffTimeOffController::class, 'update']);
+
+    //delete a specific time-off record from a specific staff member
+    Route::delete('staff/{staff}/time-offs/{staffTimeOff}', [StaffTimeOffController::class, 'destroy']);
 });
+
+/*==================
+AVAILABILITY SECTION
+====================*/
+Route::get('/businesses/{business}/availability', [AvailabilityController::class, 'index']);
