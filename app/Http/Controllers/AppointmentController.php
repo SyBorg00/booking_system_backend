@@ -176,4 +176,17 @@ class AppointmentController extends Controller
             'appointment' => $appointment->load('appointmentServices.service'),
         ], 201);
     }
+
+    public function show(Appointment $appointment)
+    {
+        $appointment->load([
+            'customer',
+            'staff',
+            'appointmentServices.service'
+        ]);
+
+        return response()->json([
+            'appointment' => $appointment,
+        ]);
+    }
 }

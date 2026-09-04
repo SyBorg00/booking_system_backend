@@ -135,4 +135,9 @@ APPOINTMENT SECTION
 The reason there's no business prefix is because the business_id is included in the request body, so we don't need to include it in the URL (also it will subsequently
 use the availability route anyways. and also this is for the customer anyways, they need global access)
 */
+
+//create a new appointment for a specific business
 Route::post('/appointments', [AppointmentController::class, 'store']);
+
+//fetch a specific appointment by its ID
+Route::get('/appointments/{appointment}', [AppointmentController::class, 'show']);
