@@ -8,6 +8,8 @@ use App\Http\Controllers\StaffController;
 use App\Http\Controllers\StaffHourController;
 use App\Http\Controllers\StaffTimeOffController;
 use App\Http\Controllers\AvailabilityController;
+use App\Http\Controllers\AppointmentController;
+
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -27,7 +29,7 @@ BUSINESS PREFIX SECTION
 Route::prefix('businesses/{business}')->group(function () {
 
     /*==================
-    SERVICES SECTION 
+    SERVICES SUB-SECTION 
     ====================*/
 
     //show the multiple services for a specific business
@@ -46,7 +48,7 @@ Route::prefix('businesses/{business}')->group(function () {
     Route::delete('services/{service}', [ServiceController::class, 'destroy']);
 
     /*==================
-    CUSTOMERS SECTION 
+    CUSTOMERS SUB-SECTION 
     ====================*/
 
     //show the multiple customers for a specific business
@@ -65,7 +67,7 @@ Route::prefix('businesses/{business}')->group(function () {
     Route::delete('customers/{customer}', [CustomerController::class, 'destroy']);
 
     /*==================
-    STAFF SECTION 
+    STAFF SUB-SECTION 
     ====================*/
     //fetch the list of staff for a specific business
     Route::get('staff', [StaffController::class, 'index']);
@@ -83,7 +85,7 @@ Route::prefix('businesses/{business}')->group(function () {
     Route::delete('staff/{staff}', [StaffController::class, 'destroy']);
 
     /*==================
-    STAFF HOUR SECTION 
+    STAFF HOUR SUB-SECTION 
     ====================*/
 
     //fetch the list of staff hours for a specific staff member
@@ -102,7 +104,7 @@ Route::prefix('businesses/{business}')->group(function () {
     Route::delete('staff/{staff}/hours/{staffHour}', [StaffHourController::class, 'destroy']);
 
     /*==================
-    STAFF TIME-OFFS SECTION 
+    STAFF TIME-OFFS SUB-SECTION 
     ====================*/
     //fetch time-offs of a specific staff member
     Route::get('staff/{staff}/time-offs', [StaffTimeOffController::class, 'index']);
@@ -124,3 +126,13 @@ Route::prefix('businesses/{business}')->group(function () {
 AVAILABILITY SECTION
 ====================*/
 Route::get('/businesses/{business}/availability', [AvailabilityController::class, 'index']);
+
+
+/*==================
+APPOINTMENT SECTION
+====================*/
+/* 
+The reason there's no business prefix is because the business_id is included in the request body, so we don't need to include it in the URL (also it will subsequently
+use the availability route anyways. and also this is for the customer anyways, they need global access)
+*/
+Route::post('/appointments', [AppointmentController::class, 'store']);
