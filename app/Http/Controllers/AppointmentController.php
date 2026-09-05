@@ -272,4 +272,32 @@ class AppointmentController extends Controller
             'appointment' => $appointment,
         ]);
     }
+
+    //only update the status and notes; ignore everything else, as they are not allowed to be updated after creation (FOR NOW)
+    public function update(Request $request, Appointment $appointment)
+    {
+        $validated = $request->validate([
+            'status' => [
+                'sometimes',
+                'in:pending,confirmed,completed,cancelled,no_show',
+            ],
+
+            'notes' => [
+                'sometimes',
+                'nullable',
+                'string',
+            ],
+        ]);
+
+        $appointment->update($validated);
+
+        return response()->json([
+            'message' => 'Appointment updated successfully.',
+            'appointment' => $appointment->fresh([
+                'customer',
+                'staff',
+                'appointmentServices.service',
+            ]),
+        ]);
+    }
 }
