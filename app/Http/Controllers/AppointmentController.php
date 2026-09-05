@@ -16,6 +16,89 @@ use Carbon\Carbon;
 
 class AppointmentController extends Controller
 {
+
+    public function index(Request $request)
+    {
+        $validated = $request->validate([
+            'business_id' => [
+                'required',
+                'integer',
+                'exists:businesses,id',
+            ],
+
+            'staff_id' => [
+                'nullable',
+                'integer',
+                'exists:staff,id',
+            ],
+
+            'customer_id' => [
+                'nullable',
+                'integer',
+                'exists:customers,id',
+            ],
+
+            'status' => [
+                'nullable',
+                'in:pending,confirmed,completed,cancelled,no_show',
+            ],
+
+            'date' => [
+                'nullable',
+                'date_format:Y-m-d',
+            ],
+        ]);
+
+        $query = Appointment::where(
+            'business_id',
+            $validated['business_id']
+        );
+
+        if (!empty($validated['staff_id'])) {
+            $query->where(
+                'staff_id',
+                $validated['staff_id']
+            );
+        }
+
+        if (!empty($validated['customer_id'])) {
+            $query->where(
+                'customer_id',
+                $validated['customer_id']
+            );
+        }
+
+        if (!empty($validated['status'])) {
+            $query->where(
+                'status',
+                $validated['status']
+            );
+        }
+
+        if (!empty($validated['date'])) {
+            $query->whereDate(
+                'start_datetime',
+                $validated['date']
+            );
+        }
+
+        $appointments = $query
+            ->with([
+                'customer',
+                'staff',
+                'appointmentServices.service',
+            ])
+            ->orderBy('start_datetime')
+            ->get();
+
+        return response()->json([
+            'appointments' => $appointments,
+        ]);
+    }
+
+
+
+
     public function store(
         Request $request,
         AvailabilityService $availabilityService
