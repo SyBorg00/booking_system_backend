@@ -125,7 +125,11 @@ Route::prefix('businesses/{business}')->group(function () {
 /*==================
 AVAILABILITY SECTION
 ====================*/
-Route::get('/businesses/{business}/availability', [AvailabilityController::class, 'index']);
+// //fetching w/ only one service (will be commented as of the moment)
+// Route::get('/businesses/{business}/availability', [AvailabilityController::class, 'index']);
+
+//fetching w/ multiple services
+Route::get('/businesses/{business}/availability', [AvailabilityController::class, 'generateSlots']);
 
 
 /*==================
@@ -144,3 +148,6 @@ Route::get('/appointments/{appointment}', [AppointmentController::class, 'show']
 
 //create a new appointment for a specific business
 Route::post('/appointments', [AppointmentController::class, 'store']);
+
+//update status and/or notes of an appointment only (for now)
+Route::patch('appointments/{appointment}', [AppointmentController::class, 'update']);
