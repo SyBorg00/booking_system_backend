@@ -151,3 +151,6 @@ Route::post('/appointments', [AppointmentController::class, 'store']);
 
 //update status and/or notes of an appointment only (for now)
 Route::patch('appointments/{appointment}', [AppointmentController::class, 'update']);
+
+//reschedule an existing appointment
+Route::patch('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);

@@ -16,7 +16,7 @@ use Carbon\Carbon;
 
 class AppointmentController extends Controller
 {
-
+    //Fetch appointments based on filters like business, staff, customer, status, and date
     public function index(Request $request)
     {
         $validated = $request->validate([
@@ -96,15 +96,17 @@ class AppointmentController extends Controller
         ]);
     }
 
-
-
-
+    //Adds a new appointment for a business, customer, and staff member
     public function store(
         Request $request,
         AvailabilityService $availabilityService
     ) {
 
-        //verification request are put in here instead of creating another request file
+        /*
+        |--------------------------------------------------------------------------
+        | Verification request are put in here instead of creating another request file
+        |--------------------------------------------------------------------------
+        */
         $validated = $request->validate([
             'business_id' => [
                 'required',
@@ -142,10 +144,18 @@ class AppointmentController extends Controller
             ],
         ]);
 
-        //Retrieve business
+        /*
+        |--------------------------------------------------------------------------
+        | Retrieve business
+        |--------------------------------------------------------------------------
+        */
         $business = Business::findOrFail($validated['business_id']);
 
-        //verify that the customer belongs to the business 
+        /*
+        |--------------------------------------------------------------------------
+        | Verify that the customer belongs to the business 
+        |--------------------------------------------------------------------------
+        */
         $customer = Customer::where('id', $validated['customer_id'])
             ->where('business_id', $business->id)
             ->first();
@@ -156,7 +166,11 @@ class AppointmentController extends Controller
             ]);
         }
 
-        //verify that the staff belongs to the business
+        /*
+        |--------------------------------------------------------------------------
+        | Verify that the staff belongs to the business
+        |--------------------------------------------------------------------------
+        */
         $staff = Staff::where('id', $validated['staff_id'])
             ->where('business_id', $business->id)
             ->first();
@@ -167,10 +181,11 @@ class AppointmentController extends Controller
             ]);
         }
 
-
-
-
-        //Retrieve services and verify that they belong to the business
+        /*
+        |--------------------------------------------------------------------------
+        | Retrieve services and verify that they belong to the business
+        |--------------------------------------------------------------------------
+        */
         $serviceIds = collect($validated['services'])
             ->pluck('service_id');
 
@@ -184,8 +199,11 @@ class AppointmentController extends Controller
             ]);
         }
 
-
-        //Calculate total appointment duration
+        /*
+        |--------------------------------------------------------------------------
+        | Calculate total appointment duration
+        |--------------------------------------------------------------------------
+        */
         $totalMinutes = $services->sum(function ($service) {
             return $service->duration_minutes
                 + $service->buffer_minutes;
@@ -198,8 +216,11 @@ class AppointmentController extends Controller
         $start = Carbon::parse($validated['start_datetime']);
         $end = $start->copy()->addMinutes($totalMinutes);
 
-
-        //Check staff availability
+        /*
+        |--------------------------------------------------------------------------
+        | Check staff availability for the requested time slot
+        |--------------------------------------------------------------------------
+        */
         $availableSlots = $availabilityService->getAvailableSlotsForServices(
             $staff,
             $services,
@@ -221,8 +242,11 @@ class AppointmentController extends Controller
             ]);
         }
 
-
-        //create appointment and service snapshots
+        /*
+        |--------------------------------------------------------------------------
+        | Create appointment and service snapshots
+        |--------------------------------------------------------------------------
+        */
         $appointment = DB::transaction(function () use (
             $business,
             $validated,
@@ -260,6 +284,7 @@ class AppointmentController extends Controller
         ], 201);
     }
 
+    //Fetch a specific appointment by its ID, including related customer, staff, and services
     public function show(Appointment $appointment)
     {
         $appointment->load([
@@ -273,9 +298,14 @@ class AppointmentController extends Controller
         ]);
     }
 
-    //only update the status and notes; ignore everything else, as they are not allowed to be updated after creation (FOR NOW)
+    //Update a specific appointment's status and notes; ignore everything else, as they are not allowed to be updated after creation (FOR NOW)
     public function update(Request $request, Appointment $appointment)
     {
+        /*
+        |--------------------------------------------------------------------------
+        | Validation variables to be used
+        |--------------------------------------------------------------------------
+        */
         $validated = $request->validate([
             'status' => [
                 'sometimes',
@@ -300,4 +330,196 @@ class AppointmentController extends Controller
             ]),
         ]);
     }
+
+    //Reschedule an appointment to a new time and/or staff member [Really heavy verification process]
+    public function reschedule(
+        Request $request,
+        Appointment $appointment,
+        AvailabilityService $availabilityService
+    ) {
+        $validated = $request->validate([
+            'staff_id' => [
+                'sometimes',
+                'integer',
+                'exists:staff,id',
+            ],
+
+            'start_datetime' => [
+                'required',
+                'date',
+            ],
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Determine the new staff member
+        |--------------------------------------------------------------------------
+        */
+        $staffId = $validated['staff_id'] ?? $appointment->staff_id;
+
+        $staff = Staff::findOrFail($staffId);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Verify that the staff belongs to the same business
+        |--------------------------------------------------------------------------
+        */
+        if ($staff->business_id !== $appointment->business_id) {
+            return response()->json([
+                'message' => 'The selected staff member does not belong to this business.',
+            ], 422);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Get the services attached to the appointment
+        |--------------------------------------------------------------------------
+        */
+        $appointment->load('appointmentServices');
+
+        $appointmentServices = $appointment->appointmentServices;
+
+        if ($appointmentServices->isEmpty()) {
+            return response()->json([
+                'message' => 'The appointment has no services attached to it.',
+            ], 422);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Calculate total appointment duration
+        |--------------------------------------------------------------------------
+        |
+        | Calcuated using the SNAPSHOT values stored in appointment_services rather
+        | than the current service definitions. It may be possible that the service definitions have changed since the appointment was created - Hence,
+        | the importance of using the snapshot values.
+        |
+        */
+
+        $totalDuration = $appointmentServices->sum(
+            function ($appointmentService) {
+                return $appointmentService->duration_minutes
+                    + $appointmentService->buffer_minutes;
+            }
+        );
+
+        if ($totalDuration <= 0) {
+            return response()->json([
+                'message' => 'The appointment has an invalid duration.',
+            ], 422);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Calculate new end time
+        |--------------------------------------------------------------------------
+        */
+
+        $start = Carbon::parse(
+            $validated['start_datetime']
+        );
+
+        $end = $start->copy()->addMinutes($totalDuration);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Check staff working hours (may be possible to create a helper function for this as the store() is also using this logic)
+        |--------------------------------------------------------------------------
+        */
+
+        $dayOfWeek = $start->dayOfWeek;
+
+        $staffHours = $staff->hours()
+            ->where('day_of_week', $dayOfWeek)
+            ->where('is_off', false)
+            ->get();
+
+        $fitsWorkingHours = $staffHours->contains(
+            function ($hours) use ($start, $end) {
+                $periodStart = Carbon::parse(
+                    $start->toDateString() . ' ' . $hours->start_time
+                );
+
+                $periodEnd = Carbon::parse(
+                    $start->toDateString() . ' ' . $hours->end_time
+                );
+
+                return $start->gte($periodStart)
+                    && $end->lte($periodEnd);
+            }
+        );
+
+        if (!$fitsWorkingHours) {
+            return response()->json([
+                'message' => 'The selected time is outside the staff member\'s working hours.',
+            ], 422);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Check staff time-offs
+        |--------------------------------------------------------------------------
+        */
+        $timeOffConflict = $staff->timeOffs()
+            ->where('start_datetime', '<', $end)
+            ->where('end_datetime', '>', $start)
+            ->exists();
+
+        if ($timeOffConflict) {
+            return response()->json([
+                'message' => 'The selected time conflicts with the staff member\'s time off.',
+            ], 422);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Check other blocking appointments
+        |--------------------------------------------------------------------------
+        |
+        | IMPORTANT:
+        | Excluded the appointment currently being rescheduled.
+        |
+        */
+        $appointmentConflict = Appointment::where(
+            'staff_id',
+            $staff->id
+        )
+            ->where('id', '!=', $appointment->id)
+            ->where('start_datetime', '<', $end)
+            ->where('end_datetime', '>', $start)
+            ->whereIn('status', [
+                'pending',
+                'confirmed',
+            ])
+            ->exists();
+
+        if ($appointmentConflict) {
+            return response()->json([
+                'message' => 'The selected time conflicts with another appointment.',
+            ], 422);
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Update appointment
+        |--------------------------------------------------------------------------
+        */
+        $appointment->update([
+            'staff_id' => $staff->id,
+            'start_datetime' => $start,
+            'end_datetime' => $end,
+        ]);
+
+        return response()->json([
+            'message' => 'Appointment rescheduled successfully.',
+            'appointment' => $appointment->fresh([
+                'customer',
+                'staff',
+                'appointmentServices.service',
+            ]),
+        ]);
+    }
+
+    //Helper Function to validate the availability of a staff member for a specific time slot and services (not yet implemented)
+    public function validateSchedule() {}
 }
