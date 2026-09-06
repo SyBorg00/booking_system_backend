@@ -218,28 +218,20 @@ class AppointmentController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Check staff availability for the requested time slot
+        | Check staff availability for the requested time slot (NOW USES VALIDATESLOT from AvailabilityService)
         |--------------------------------------------------------------------------
         */
-        $availableSlots = $availabilityService->getAvailableSlotsForServices(
+
+        $conflictMessage = $availabilityService->validateSlot(
             $staff,
-            $services,
-            $start->toDateString()
+            $start,
+            $totalMinutes
         );
 
-        $requestedSlotIsAvailable = collect($availableSlots)
-            ->contains(function ($slot) use ($start, $end) {
-                $slotStart = Carbon::parse($start->toDateString() . ' ' . $slot['start']);
-                $slotEnd = Carbon::parse($start->toDateString() . ' ' . $slot['end']);
-                return $slotStart->equalTo($start) && $slotEnd->equalTo($end);
-            });
-
-        if (!$requestedSlotIsAvailable) {
-            throw ValidationException::withMessages([
-                'start_datetime' => [
-                    'The selected time is not available for this staff member.'
-                ],
-            ]);
+        if ($conflictMessage !== null) {
+            throw ValidationException::withMessages(
+                ['start_datetime' => [$conflictMessage,],]
+            );
         }
 
         /*
@@ -352,7 +344,7 @@ class AppointmentController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Determine the new staff member
+        | Determine the new staff member (if not provided, use the current staff member)
         |--------------------------------------------------------------------------
         */
         $staffId = $validated['staff_id'] ?? $appointment->staff_id;
@@ -395,7 +387,6 @@ class AppointmentController extends Controller
         | the importance of using the snapshot values.
         |
         */
-
         $totalDuration = $appointmentServices->sum(
             function ($appointmentService) {
                 return $appointmentService->duration_minutes
@@ -423,80 +414,18 @@ class AppointmentController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Check staff working hours (may be possible to create a helper function for this as the store() is also using this logic)
+        | Validate the requested time slots
         |--------------------------------------------------------------------------
         */
-
-        $dayOfWeek = $start->dayOfWeek;
-
-        $staffHours = $staff->hours()
-            ->where('day_of_week', $dayOfWeek)
-            ->where('is_off', false)
-            ->get();
-
-        $fitsWorkingHours = $staffHours->contains(
-            function ($hours) use ($start, $end) {
-                $periodStart = Carbon::parse(
-                    $start->toDateString() . ' ' . $hours->start_time
-                );
-
-                $periodEnd = Carbon::parse(
-                    $start->toDateString() . ' ' . $hours->end_time
-                );
-
-                return $start->gte($periodStart)
-                    && $end->lte($periodEnd);
-            }
+        $conflictMessage = $availabilityService->validateSlot(
+            $staff,
+            $start,
+            $totalDuration,
+            $appointment->id
         );
 
-        if (!$fitsWorkingHours) {
-            return response()->json([
-                'message' => 'The selected time is outside the staff member\'s working hours.',
-            ], 422);
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Check staff time-offs
-        |--------------------------------------------------------------------------
-        */
-        $timeOffConflict = $staff->timeOffs()
-            ->where('start_datetime', '<', $end)
-            ->where('end_datetime', '>', $start)
-            ->exists();
-
-        if ($timeOffConflict) {
-            return response()->json([
-                'message' => 'The selected time conflicts with the staff member\'s time off.',
-            ], 422);
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Check other blocking appointments
-        |--------------------------------------------------------------------------
-        |
-        | IMPORTANT:
-        | Excluded the appointment currently being rescheduled.
-        |
-        */
-        $appointmentConflict = Appointment::where(
-            'staff_id',
-            $staff->id
-        )
-            ->where('id', '!=', $appointment->id)
-            ->where('start_datetime', '<', $end)
-            ->where('end_datetime', '>', $start)
-            ->whereIn('status', [
-                'pending',
-                'confirmed',
-            ])
-            ->exists();
-
-        if ($appointmentConflict) {
-            return response()->json([
-                'message' => 'The selected time conflicts with another appointment.',
-            ], 422);
+        if ($conflictMessage !== null) {
+            return response()->json(['message' => $conflictMessage,], 422);
         }
 
         /*
@@ -519,7 +448,4 @@ class AppointmentController extends Controller
             ]),
         ]);
     }
-
-    //Helper Function to validate the availability of a staff member for a specific time slot and services (not yet implemented)
-    public function validateSchedule() {}
 }

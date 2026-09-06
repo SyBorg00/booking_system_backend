@@ -267,4 +267,107 @@ class AvailabilityService
 
         return $availableSlots;
     }
+
+
+    /*
+        *Helper function to validate the availabale time slots of an appointment. Ensure that the following are in sync on what validation method to use:
+        * 1. Availability Generation  (getAvailableSlotsForServices() -> this class)
+        * 2. Appointment creation (store() -> AppointmentController)
+        * 3. Appointment rescheduling  (reschedule() -> AppointmentController)
+    */
+    public function validateSlot(
+        Staff $staff,
+        Carbon $start,
+        int $durationMinutes,
+        ?int $excludeAppointmentId = null //This guy is only used for the rescheduling function in the appointment controller
+    ): ?string {
+
+        $end = $start->copy()->addMinutes($durationMinutes);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Check working hours
+        |--------------------------------------------------------------------------
+        */
+        $dayOfWeek = $start->dayOfWeek;
+
+        $staffHours = $staff->hours()
+            ->where('day_of_week', $dayOfWeek)
+            ->where('is_off', false)
+            ->get();
+
+        $fitsWorkingHours = $staffHours->contains(
+            function ($hours) use ($start, $end) {
+
+                $periodStart = Carbon::parse(
+                    $start->toDateString() . ' ' . $hours->start_time
+                );
+
+                $periodEnd = Carbon::parse(
+                    $start->toDateString() . ' ' . $hours->end_time
+                );
+
+                return $start->gte($periodStart)
+                    && $end->lte($periodEnd);
+            }
+        );
+
+        if (!$fitsWorkingHours) {
+            return 'The selected time is outside the staff member\'s working hours.';
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Check time-offs
+        |--------------------------------------------------------------------------
+        */
+
+        $timeOffConflict = $staff->timeOffs()
+            ->where('start_datetime', '<', $end)
+            ->where('end_datetime', '>', $start)
+            ->exists();
+
+        if ($timeOffConflict) {
+            return 'The selected time conflicts with the staff member\'s time off.';
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Check existing appointments
+        |--------------------------------------------------------------------------
+        |
+        | IMPORTANT:
+        | Excluded the appointment currently being rescheduled.
+        |
+        */
+        $appointmentQuery = Appointment::where(
+            'staff_id',
+            $staff->id
+        )
+            ->where('start_datetime', '<', $end)
+            ->where('end_datetime', '>', $start)
+            ->whereIn('status', [
+                'pending',
+                'confirmed',
+            ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Exclude the appointment currently being rescheduled
+        |--------------------------------------------------------------------------
+        */
+        if ($excludeAppointmentId !== null) {
+            $appointmentQuery->where(
+                'id',
+                '!=',
+                $excludeAppointmentId
+            );
+        }
+
+        if ($appointmentQuery->exists()) {
+            return 'The selected time conflicts with another appointment.';
+        }
+
+        return null;
+    }
 }
