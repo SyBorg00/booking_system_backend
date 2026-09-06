@@ -19,7 +19,11 @@ class Appointment extends Model
         'notes',
     ];
 
-    //ensure that the datetime variables are always formatted correctly
+    /*
+    |--------------------------------------------------------------------------
+    | Ensure that the datetime variables are always formatted correctly
+    |--------------------------------------------------------------------------
+    */
     protected $casts = [
         'start_datetime' => 'datetime',
         'end_datetime' => 'datetime',
@@ -66,5 +70,56 @@ class Appointment extends Model
             'buffer_minutes',
         ])
             ->withTimestamps();
+    }
+
+    /*==========================================
+            RULES SECTION
+    ============================================*/
+
+    /*  
+    | This ensures that the appointment can only transition to certain statuses based on its current status. For example, an 
+    | appointment that is currently "pending" can only transition to "confirmed" or "cancelled", but not to "completed" or "no_show". 
+    | This helps maintain the integrity of the appointment's lifecycle and prevents invalid status changes. 
+    */
+    public function canTransitionTo(string $newStatus): bool
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | If there is no change in status, allow the transition (no-op)
+        |--------------------------------------------------------------------------
+        */
+        if ($this->status === $newStatus) {
+            return true;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Define allowed transitions for each status
+        |--------------------------------------------------------------------------
+        */
+        $allowedTransitions = [
+            'pending' => [
+                'confirmed',
+                'cancelled',
+            ],
+
+            'confirmed' => [
+                'completed',
+                'cancelled',
+                'no_show',
+            ],
+
+            'completed' => [],
+
+            'cancelled' => [],
+
+            'no_show' => [],
+        ];
+
+        return in_array(
+            $newStatus,
+            $allowedTransitions[$this->status] ?? [],
+            true
+        );
     }
 }

@@ -311,6 +311,21 @@ class AppointmentController extends Controller
             ],
         ]);
 
+        /*
+        |--------------------------------------------------------------------------
+        | Validate the status change (if the appointment is already completed or cancelled, it cannot be rescheduled)
+        |--------------------------------------------------------------------------
+        */
+        if (
+            isset($validated['status']) && !$appointment->canTransitionTo($validated['status'])
+        ) {
+            throw ValidationException::withMessages([
+                'status' => ["The appointment cannot transition from "
+                    . "'{$appointment->status}' to "
+                    . "'{$validated['status']}'.",],
+            ]);
+        }
+
         $appointment->update($validated);
 
         return response()->json([
