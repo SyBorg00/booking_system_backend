@@ -56,4 +56,14 @@ class Business extends Model
     {
         return $this->hasMany(Appointment::class);
     }
+
+    //Uses BusinessUser pivot table to show that a business can have multiple users (staff members) and a user can belong to multiple businesses
+    public function users()
+    {
+        return $this->belongsToMany(
+            User::class,
+            'business_user'
+        )->withPivot('role')
+            ->withTimestamps();
+    }
 }

@@ -54,9 +54,19 @@ class User extends Authenticatable
             RELATIONSHIPS SECTION
     ============================================*/
 
-
+    //to show that a user can be associated with a single staff member
     public function staff()
     {
         return $this->hasOne(Staff::class);
+    }
+
+    //Ensure that a user can be associated with multiple businesses, and that a business can have multiple users (uses BusinessUser pivot table for this)
+    public function businesses()
+    {
+        return $this->belongsToMany(
+            Business::class,
+            'business_user'
+        )->withPivot('role')
+            ->withTimestamps();
     }
 }
