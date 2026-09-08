@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 
+
 class AppointmentController extends Controller
 {
     //Fetch appointments based on filters like business, staff, customer, status, and date
@@ -279,6 +280,8 @@ class AppointmentController extends Controller
     //Fetch a specific appointment by its ID, including related customer, staff, and services
     public function show(Appointment $appointment)
     {
+        $this->authorize('view', $appointment);
+
         $appointment->load([
             'customer',
             'staff',
