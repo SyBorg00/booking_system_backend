@@ -18,9 +18,11 @@ use Carbon\Carbon;
 class AppointmentController extends Controller
 {
     //Fetch appointments based on filters like business, staff, customer, status, and date
+
     public function index(Request $request)
     {
         $validated = $request->validate([
+
             'business_id' => [
                 'required',
                 'integer',
@@ -50,9 +52,30 @@ class AppointmentController extends Controller
             ],
         ]);
 
+        /*
+        |--------------------------------------------------------------------------
+        | Retrieve the requested business
+        |--------------------------------------------------------------------------
+        */
+        $business = Business::findOrFail(
+            $validated['business_id']
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Verify that the authenticated user can access this business
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Build appointment query
+        |--------------------------------------------------------------------------
+        */
         $query = Appointment::where(
             'business_id',
-            $validated['business_id']
+            $business->id
         );
 
         if (!empty($validated['staff_id'])) {
