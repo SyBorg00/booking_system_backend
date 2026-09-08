@@ -70,6 +70,57 @@ class AppointmentController extends Controller
 
         /*
         |--------------------------------------------------------------------------
+        | Verify that the staff member belongs to the business if a staff_id is provided
+        |--------------------------------------------------------------------------
+        */
+        if (!empty($validated['staff_id'])) {
+            $staffBelongsToBusiness = Staff::where(
+                'id',
+                $validated['staff_id']
+            )
+                ->where(
+                    'business_id',
+                    $business->id
+                )
+                ->exists();
+
+            if (!$staffBelongsToBusiness) {
+                throw ValidationException::withMessages([
+                    'staff_id' => [
+                        'The selected staff member does not belong to this business.'
+                    ],
+                ]);
+            }
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Verify that the customer belongs to the business if a customer_id is provided
+        |--------------------------------------------------------------------------
+        */
+        if (!empty($validated['customer_id'])) {
+
+            $customerBelongsToBusiness = Customer::where(
+                'id',
+                $validated['customer_id']
+            )
+                ->where(
+                    'business_id',
+                    $business->id
+                )
+                ->exists();
+
+            if (!$customerBelongsToBusiness) {
+                throw ValidationException::withMessages([
+                    'customer_id' => [
+                        'The selected customer does not belong to this business.'
+                    ],
+                ]);
+            }
+        }
+
+        /*
+        |--------------------------------------------------------------------------
         | Build appointment query
         |--------------------------------------------------------------------------
         */
