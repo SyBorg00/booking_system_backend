@@ -9,6 +9,7 @@ use App\Http\Controllers\StaffHourController;
 use App\Http\Controllers\StaffTimeOffController;
 use App\Http\Controllers\AvailabilityController;
 use App\Http\Controllers\AppointmentController;
+use App\Http\Controllers\AuthController;
 
 
 Route::get('/user', function (Request $request) {
@@ -22,6 +23,10 @@ Route::get('/test', function () {
     ]);
 });
 
+/*========================
+AUTH SECTION
+==========================*/
+Route::post('/login', [AuthController::class, 'login']);
 
 /*========================
 BUSINESS PREFIX SECTION 
