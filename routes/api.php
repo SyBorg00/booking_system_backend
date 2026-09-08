@@ -145,17 +145,20 @@ The reason there's no business prefix is because the business_id is included in 
 use the availability route anyways. and also this is for the customer anyways, they need global access)
 */
 
-//fetch all appointments for a specific business (with optional filters)
-Route::get('/appointments', [AppointmentController::class, 'index']);
+//All appointments routes are protected by Sanctum authentication middleware, meaning that only authenticated users can access these routes.
+Route::middleware('auth:sanctum')->group(function () {
+    //fetch all appointments for a specific business (with optional filters)
+    Route::get('/appointments', [AppointmentController::class, 'index']);
 
-//fetch a specific appointment by its ID
-Route::get('/appointments/{appointment}', [AppointmentController::class, 'show']);
+    //fetch a specific appointment by its ID
+    Route::get('/appointments/{appointment}', [AppointmentController::class, 'show']);
 
-//create a new appointment for a specific business
-Route::post('/appointments', [AppointmentController::class, 'store']);
+    //create a new appointment for a specific business
+    Route::post('/appointments', [AppointmentController::class, 'store']);
 
-//update status and/or notes of an appointment only (for now)
-Route::patch('appointments/{appointment}', [AppointmentController::class, 'update']);
+    //update status and/or notes of an appointment only (for now)
+    Route::patch('appointments/{appointment}', [AppointmentController::class, 'update']);
 
-//reschedule an existing appointment
-Route::patch('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);
+    //reschedule an existing appointment
+    Route::patch('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);
+});
