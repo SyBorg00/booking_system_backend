@@ -537,11 +537,22 @@ class AppointmentController extends Controller
         | Update appointment
         |--------------------------------------------------------------------------
         */
-        $appointment->update([
-            'staff_id' => $staff->id,
-            'start_datetime' => $start,
-            'end_datetime' => $end,
-        ]);
+
+        $appointment = DB::transaction(function () use (
+            $appointment,
+            $staff,
+            $start,
+            $end,
+        ) {
+            $appointment->update([
+                'staff_id' => $staff->id,
+                'start_datetime' => $start,
+                'end_datetime' => $end,
+            ]);
+
+            return $appointment;
+        });
+
 
         return response()->json([
             'message' => 'Appointment rescheduled successfully.',
