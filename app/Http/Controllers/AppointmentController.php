@@ -374,6 +374,7 @@ class AppointmentController extends Controller
     //Update a specific appointment's status and notes; ignore everything else, as they are not allowed to be updated after creation (FOR NOW)
     public function update(Request $request, Appointment $appointment)
     {
+        $this->authorize('update', $appointment);
         /*
         |--------------------------------------------------------------------------
         | Validation variables to be used
@@ -394,7 +395,7 @@ class AppointmentController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | Validate the status change (if the appointment is already completed or cancelled, it cannot be rescheduled)
+        | Validate the status change
         |--------------------------------------------------------------------------
         */
         if (
@@ -425,6 +426,13 @@ class AppointmentController extends Controller
         Appointment $appointment,
         AvailabilityService $availabilityService
     ) {
+
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization check to ensure the user has permission to reschedule an appointment (put here as early as possible to avoid unnecessary processing)
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('update', $appointment);
         $validated = $request->validate([
             'staff_id' => [
                 'sometimes',

@@ -82,6 +82,21 @@ class AppointmentPolicy
      */
     public function update(User $user, Appointment $appointment): bool
     {
+        if ($user->role === 'super_admin') {
+            return true;
+        }
+
+        if ($user->role === 'admin') {
+            return $user->businesses()
+                ->where('businesses.id', $appointment->business_id)
+                ->exists();
+        }
+
+        if ($user->role === 'staff') {
+            return $user->staff
+                && $user->staff->business_id === $appointment->business_id;
+        }
+
         return false;
     }
 
