@@ -17,6 +17,13 @@ class StaffController extends Controller
     //fetch the list of staff for a specific business
     public function index(Business $business)
     {
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before creating a customer
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
         return response()->json(
             $business->staff()->with('user')->get()
         );
@@ -27,6 +34,13 @@ class StaffController extends Controller
         StoreStaffRequest $request,
         Business $business
     ) {
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before creating a customer
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
         $staff = $business->staff()->create(
             $request->validated()
         );
@@ -42,6 +56,13 @@ class StaffController extends Controller
         Business $business,
         Staff $staff
     ) {
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before showing a customer
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
         abort_unless(
             $staff->business_id === $business->id,
             404
@@ -58,6 +79,12 @@ class StaffController extends Controller
         Business $business,
         Staff $staff
     ) {
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before updating a customer
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
         abort_unless(
             $staff->business_id ===  $business->id,
             404
@@ -77,6 +104,12 @@ class StaffController extends Controller
         Business $business,
         Staff $staff
     ) {
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before deleting a customer
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
         abort_unless(
             $staff->business_id === $business->id,
             404
