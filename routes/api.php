@@ -135,19 +135,20 @@ Route::middleware('auth:sanctum')->group(function () {
 
         //delete a specific time-off record from a specific staff member
         Route::delete('staff/{staff}/time-offs/{staffTimeOff}', [StaffTimeOffController::class, 'destroy']);
+    });
 
-        /*
+    /*
     |====================
     |AVAILABILITY SECTION
-    |====================*/
-        // //fetching w/ only one service (will be commented as of the moment)
-        // Route::get('/businesses/{business}/availability', [AvailabilityController::class, 'index']);
+    |====================
+    */
+    // //fetching w/ only one service (will be commented as of the moment)
+    // Route::get('/businesses/{business}/availability', [AvailabilityController::class, 'index']);
 
-        //fetching w/ multiple services
-        Route::get('/businesses/{business}/availability', [AvailabilityController::class, 'generateSlots']);
+    //fetching w/ multiple services
+    Route::get('/businesses/{business}/availability', [AvailabilityController::class, 'generateSlots']);
 
-
-        /*
+    /*
     |========================================================================
     |APPOINTMENT SECTION
     |------------------------------------------------------------------------
@@ -158,19 +159,18 @@ Route::middleware('auth:sanctum')->group(function () {
     |========================================================================
     */
 
-        //fetch all appointments for a specific business (with optional filters)
-        Route::get('/appointments', [AppointmentController::class, 'index']);
+    //fetch all appointments for a specific business (with optional filters)
+    Route::get('/appointments', [AppointmentController::class, 'index']);
 
-        //fetch a specific appointment by its ID
-        Route::get('/appointments/{appointment}', [AppointmentController::class, 'show']);
+    //fetch a specific appointment by its ID
+    Route::get('/appointments/{appointment}', [AppointmentController::class, 'show']);
 
-        //create a new appointment for a specific business
-        Route::post('/appointments', [AppointmentController::class, 'store']);
+    //create a new appointment for a specific business
+    Route::post('/appointments', [AppointmentController::class, 'store']);
 
-        //update status and/or notes of an appointment only (for now)
-        Route::patch('appointments/{appointment}', [AppointmentController::class, 'update']);
+    //update status and/or notes of an appointment only (for now)
+    Route::patch('appointments/{appointment}', [AppointmentController::class, 'update']);
 
-        //reschedule an existing appointment
-        Route::patch('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);
-    });
+    //reschedule an existing appointment
+    Route::patch('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);
 });
