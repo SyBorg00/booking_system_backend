@@ -59,7 +59,7 @@ class CustomerController extends Controller
     ) {
         /*
         |--------------------------------------------------------------------------
-        | Authorization: Ensure that the user has permission to view the business before creating a customer
+        | Authorization: Ensure that the user has permission to view the business before showing a customer
         |--------------------------------------------------------------------------
         */
         $this->authorize('view', $business);
@@ -85,7 +85,7 @@ class CustomerController extends Controller
     ) {
         /*
         |--------------------------------------------------------------------------
-        | Authorization: Ensure that the user has permission to view the business before creating a customer
+        | Authorization: Ensure that the user has permission to view the business before updating a customer
         |--------------------------------------------------------------------------
         */
         $this->authorize('view', $business);
@@ -116,7 +116,7 @@ class CustomerController extends Controller
     ) {
         /*
         |--------------------------------------------------------------------------
-        | Authorization: Ensure that the user has permission to view the business before creating a customer
+        | Authorization: Ensure that the user has permission to view the business before deleting a customer
         |--------------------------------------------------------------------------
         */
         $this->authorize('view', $business);
