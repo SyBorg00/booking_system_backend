@@ -13,6 +13,13 @@ class CustomerController extends Controller
     //obtain the list of customers for a specific business
     public function index(Business $business)
     {
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before fetching customers
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
         return response()->json(
             $business->customers()->get()
         );
@@ -23,7 +30,18 @@ class CustomerController extends Controller
         StoreCustomerRequest $request,
         Business $business
     ) {
-        //put business_id in the request data to ensure that the customer is associated with the correct business
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before creating a customer
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Put business_id in the request data to ensure that the customer is associated with the correct business
+        |--------------------------------------------------------------------------
+        */
         $customer = $business->customers()->create(
             $request->validated()
         );
@@ -39,9 +57,20 @@ class CustomerController extends Controller
         Business $business,
         Customer $customer
     ) {
-        //ensure that the customer belongs to the business before operating this, if not return 404
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before creating a customer
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Ensure that the customer belongs to the business before operating this, if not return 404
+        |--------------------------------------------------------------------------
+        */
         abort_unless(
-            (int) $customer->business_id === (int) $business->id,
+            $customer->business_id === $business->id,
             404
         );
 
@@ -54,9 +83,20 @@ class CustomerController extends Controller
         Business $business,
         Customer $customer
     ) {
-        //ensure that the customer belongs to the business before operating this, if not return 404
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before creating a customer
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Ensure that the customer belongs to the business before operating this, if not return 404
+        |--------------------------------------------------------------------------
+        */
         abort_unless(
-            (int) $customer->business_id === (int) $business->id,
+            $customer->business_id === $business->id,
             404
         );
 
@@ -74,9 +114,20 @@ class CustomerController extends Controller
         Business $business,
         Customer $customer
     ) {
-        //ensure that the customer belongs to the business before operating this, if not return 404
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before creating a customer
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Ensure that the customer belongs to the business before operating this, if not return 404
+        |--------------------------------------------------------------------------
+        */
         abort_unless(
-            (int) $customer->business_id === (int) $business->id,
+            $customer->business_id === $business->id,
             404
         );
 
