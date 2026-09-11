@@ -12,6 +12,13 @@ class ServiceController extends Controller
     //obtain the list of services for a specific business
     public function index(Business $business)
     {
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before showing the list of services
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
         return response()->json(
             $business->services()->get()
         );
@@ -22,8 +29,20 @@ class ServiceController extends Controller
         StoreServiceRequest $request,
         Business $business
     ) {
-        //rather than using Service::create, we use the relationship to create the service for the specific business
-        // (really useful for multi-business architecture)
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before creating a service
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Use the relationship between service and business to create said service 
+        | for the specific business, rather than using Service::create. 
+        | This is really useful for multi-business architecture.
+        |--------------------------------------------------------------------------
+        */
         $service = $business->services()->create(
             $request->validated()
         );
@@ -39,7 +58,18 @@ class ServiceController extends Controller
         Business $business,
         Service $service
     ) {
-        //this is to ensure that the service being shown belongs to that specific business, otherwise return 404 and abort this function
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before showing a specific service
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Ensure that the service belongs to the business before operating this, if not return 404
+        |--------------------------------------------------------------------------
+        */
         abort_unless(
             $service->business_id === $business->id,
             404
@@ -53,7 +83,18 @@ class ServiceController extends Controller
         Business $business,
         Service $service
     ) {
-        //same case with show() but for updating
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before updating a service
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Ensure that the service belongs to the business before operating this, if not return 404
+        |--------------------------------------------------------------------------
+        */
         abort_unless(
             $service->business_id === $business->id,
             404
@@ -70,7 +111,18 @@ class ServiceController extends Controller
         Business $business,
         Service $service
     ) {
-        //same case but for deleting
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before showing a customer
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Ensure that the service belongs to the business before operating this, if not return 404
+        |--------------------------------------------------------------------------
+        */
         abort_unless(
             $service->business_id === $business->id,
             404
