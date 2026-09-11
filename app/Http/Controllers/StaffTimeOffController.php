@@ -15,6 +15,13 @@ class StaffTimeOffController extends Controller
         Business $business,
         Staff $staff
     ) {
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before showing the list of a specific staff member's time-off records.
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
         abort_unless(
             $staff->business_id === $business->id,
             404
@@ -33,6 +40,13 @@ class StaffTimeOffController extends Controller
         Business $business,
         Staff $staff
     ) {
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before creating a specific staff member's time-off records.
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
         abort_unless(
             $staff->business_id === $business->id,
             404
@@ -54,6 +68,13 @@ class StaffTimeOffController extends Controller
         Staff $staff,
         StaffTimeOff $staffTimeOff
     ) {
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before showing a specific staff member's specific time-off record
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
         abort_unless(
             $staff->business_id === $business->id,
             404
@@ -74,6 +95,13 @@ class StaffTimeOffController extends Controller
         Staff $staff,
         StaffTimeOff $staffTimeOff
     ) {
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before updating of a specific staff member's time-off record.
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
         abort_unless(
             $staff->business_id === $business->id,
             404
@@ -99,6 +127,13 @@ class StaffTimeOffController extends Controller
         Staff $staff,
         StaffTimeOff $staffTimeOff
     ) {
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before deleting specific staff member's time-off record.
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
         abort_unless(
             $staff->business_id === $business->id,
             404
