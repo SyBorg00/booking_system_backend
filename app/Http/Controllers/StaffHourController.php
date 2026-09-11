@@ -8,17 +8,31 @@ use App\Models\Business;
 use App\Models\Staff;
 use App\Models\StaffHour;
 
+/*
+|--------------------------------------------------------------------------
+| StaffHourController
+|--------------------------------------------------------------------------
+| For this controller, it needs to ensure that the business id and the staff id 
+| must be specified first and foremost. Otherwise, it would cause some unforeseen
+| problems in the near future, like for example, another member from a different 
+| business manipulating the data of another member from a different business
+*/
+
 class StaffHourController extends Controller
 {
-    /* For this controller, it needs to ensure that the business id and the staff id must be specified first and foremost.
-    Otherwise, it would cause some unforeseen problems in the near future, like for example, another member from a different business manipulating 
-    the data of another member from a different business*/
 
     //load the staff hours for a specific staff member in a business
     public function index(
         Business $business,
         Staff $staff
     ) {
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before showing a customer
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
         abort_unless(
             $staff->business_id ===  $business->id,
             404
@@ -37,6 +51,13 @@ class StaffHourController extends Controller
         Business $business,
         Staff $staff
     ) {
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before showing a customer
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
         abort_unless(
             $staff->business_id ===  $business->id,
             404
@@ -58,6 +79,13 @@ class StaffHourController extends Controller
         Staff $staff,
         StaffHour $staffHour
     ) {
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before showing a customer
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
         abort_unless(
             $staff->business_id ===  $business->id,
             404
@@ -78,6 +106,13 @@ class StaffHourController extends Controller
         Staff $staff,
         StaffHour $staffHour
     ) {
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before showing a customer
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
         abort_unless(
             $staff->business_id ===  $business->id,
             404
@@ -103,6 +138,13 @@ class StaffHourController extends Controller
         Staff $staff,
         StaffHour $staffHour
     ) {
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before showing a customer
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
         abort_unless(
             $staff->business_id ===  $business->id,
             404
