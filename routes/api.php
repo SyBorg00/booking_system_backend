@@ -11,14 +11,12 @@ use App\Http\Controllers\AvailabilityController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AuthController;
 
-
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
-
-/*========================
+/*
+==========================
 PUBLIC TEST MAIN SECTION
-==========================*/
+==========================
+*/
+
 Route::get('/test', function () {
     return response()->json([
         'message' => 'Laravel API is working!',
@@ -26,16 +24,19 @@ Route::get('/test', function () {
     ]);
 });
 
-/*========================
+/*
+==========================
 LOGIN MAIN SECTION
-==========================*/
+==========================
+*/
 Route::post('/login', [AuthController::class, 'login']);
 
 
-
-/*==================================
+/*
+====================================
 AUTHENTICATED API ROUTE MAIN-SECTION
-====================================*/
+====================================
+*/
 Route::middleware('auth:sanctum')->group(function () {
 
     /*========================
