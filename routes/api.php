@@ -11,6 +11,8 @@ use App\Http\Controllers\AvailabilityController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AuthController;
 
+
+
 /*
 ==========================
 PUBLIC TEST MAIN SECTION
@@ -32,6 +34,7 @@ LOGIN MAIN SECTION
 Route::post('/login', [AuthController::class, 'login']);
 
 
+
 /*
 ====================================
 AUTHENTICATED API ROUTE MAIN-SECTION
@@ -39,14 +42,27 @@ AUTHENTICATED API ROUTE MAIN-SECTION
 */
 Route::middleware('auth:sanctum')->group(function () {
 
-    /*========================
+    /*
+    ==========================
     BUSINESS PREFIX SECTION 
-    ==========================*/
+    ==========================
+    */
     Route::prefix('businesses/{business}')->group(function () {
 
-        /*==================
+        /*
+        ====================
+        USER SUB-SECTION 
+        ====================
+        */
+        Route::get('/user', function (Request $request) {
+            return $request->user();
+        })->middleware('auth:sanctum');
+
+        /*
+        ====================
         SERVICES SUB-SECTION 
-        ====================*/
+        ====================
+        */
 
         //show the multiple services for a specific business
         Route::get('services', [ServiceController::class, 'index']);
@@ -63,9 +79,11 @@ Route::middleware('auth:sanctum')->group(function () {
         //delete a specific service for a specific business
         Route::delete('services/{service}', [ServiceController::class, 'destroy']);
 
-        /*==================
+        /*
+        ======================
         CUSTOMERS SUB-SECTION 
-        ====================*/
+        ======================
+        */
 
         //show the multiple customers for a specific business
         Route::get('customers', [CustomerController::class, 'index']);
@@ -100,9 +118,11 @@ Route::middleware('auth:sanctum')->group(function () {
         //delete a specific staff member for a specific business
         Route::delete('staff/{staff}', [StaffController::class, 'destroy']);
 
-        /*==================
+        /*
+        ======================
         STAFF HOUR SUB-SECTION 
-        ====================*/
+        ======================
+        */
 
         //fetch the list of staff hours for a specific staff member
         Route::get('staff/{staff}/hours', [StaffHourController::class, 'index']);
@@ -119,9 +139,12 @@ Route::middleware('auth:sanctum')->group(function () {
         //delete a specific staff hour for a specific staff member
         Route::delete('staff/{staff}/hours/{staffHour}', [StaffHourController::class, 'destroy']);
 
-        /*==================
+        /*
+        ============================
         STAFF TIME-OFFS SUB-SECTION 
-        ====================*/
+        ============================
+        */
+
         //fetch time-offs of a specific staff member
         Route::get('staff/{staff}/time-offs', [StaffTimeOffController::class, 'index']);
 
