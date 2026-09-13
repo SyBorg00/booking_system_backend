@@ -25,7 +25,9 @@ class StaffController extends Controller
         $this->authorize('view', $business);
 
         return response()->json(
-            $business->staff()->with('user')->get()
+            [
+                'data' => $business->staff()->with('user')->get()
+            ]
         );
     }
 
@@ -46,7 +48,10 @@ class StaffController extends Controller
         );
 
         return response()->json(
-            $staff->load('user'),
+            [
+                'message' => 'Staff created successfully.',
+                'data' => $staff->load('user')
+            ],
             201
         );
     }
@@ -69,7 +74,9 @@ class StaffController extends Controller
         );
 
         return response()->json(
-            $staff->load('user')
+            [
+                'data' => $staff->load('user')
+            ]
         );
     }
 
@@ -95,7 +102,10 @@ class StaffController extends Controller
         );
 
         return response()->json(
-            $staff->fresh()->load('user')
+            [
+                'message' => 'Staff updated successfully.',
+                'data' => $staff->fresh()->load('user')
+            ]
         );
     }
 
