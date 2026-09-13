@@ -20,7 +20,10 @@ class ServiceController extends Controller
         $this->authorize('view', $business);
 
         return response()->json(
-            $business->services()->get()
+            [
+                'data' => $business->services()->get()
+            ]
+
         );
     }
 
@@ -48,7 +51,10 @@ class ServiceController extends Controller
         );
 
         return response()->json(
-            $service,
+            [
+                'message' => 'Service created successfully.',
+                'data' => $service
+            ],
             201
         );
     }
@@ -74,7 +80,9 @@ class ServiceController extends Controller
             $service->business_id === $business->id,
             404
         );
-        return response()->json($service);
+        return response()->json([
+            'data' => $service
+        ]);
     }
 
     //update service
@@ -103,7 +111,12 @@ class ServiceController extends Controller
             $request->validated()
         );
 
-        return response()->json($service);
+        return response()->json(
+            [
+                'message' => 'Service updated successfully.',
+                'data' => $service
+            ]
+        );
     }
 
     //delete service
