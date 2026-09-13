@@ -21,7 +21,9 @@ class CustomerController extends Controller
         $this->authorize('view', $business);
 
         return response()->json(
-            $business->customers()->get()
+            [
+                'data' => $business->customers()->get()
+            ]
         );
     }
 
@@ -47,7 +49,10 @@ class CustomerController extends Controller
         );
 
         return response()->json(
-            $customer,
+            [
+                'message' => "Customer created successfully.",
+                'data' => $customer
+            ],
             201
         );
     }
@@ -74,7 +79,9 @@ class CustomerController extends Controller
             404
         );
 
-        return response()->json($customer);
+        return response()->json([
+            "data" => $customer
+        ]);
     }
 
     //update a specific customer for a specific business
@@ -105,7 +112,10 @@ class CustomerController extends Controller
         );
 
         return response()->json(
-            $customer->fresh()
+            [
+                'message' => 'Customer updated successfully.',
+                'data' => $customer->fresh()
+            ]
         );
     }
 
