@@ -184,21 +184,22 @@ class AvailabilityService
 
 
         /*
-        This is where it differs from the other method
-
-        * Calculate the total amount of time required by all services.
-        *
-        * Example:
-        *
-        * Service 1:
-        * duration = 30
-        * buffer   = 15
-        *
-        * Service 2:
-        * duration = 60
-        * buffer   = 20
-        *
-        * Total = 125 minutes
+        |--------------------------------------------------------------------------
+        |This is where it differs from the other method
+        |--------------------------------------------------------------------------        
+        |* Calculate the total amount of time required by all services.
+        |
+        | Example:
+        |
+        | Service 1:
+        | duration = 30
+        | buffer   = 15
+        |
+        | Service 2:
+        | duration = 60
+        | buffer   = 20
+        |
+        | Total = 125 minutes
         */
         $slotDuration = $services->sum(function ($service) {
             return $service->duration_minutes
@@ -211,7 +212,12 @@ class AvailabilityService
 
         $availableSlots = [];
 
-        // Generate slots for each working period.
+        /*
+        |--------------------------------------------------------------------------
+        | Generate slots for each working period.
+        |--------------------------------------------------------------------------        
+        */
+
         foreach ($staffHours as $hours) {
 
             $periodStart = Carbon::parse(
@@ -222,7 +228,11 @@ class AvailabilityService
                 $date->toDateString() . ' ' . $hours->end_time
             );
 
-            // Generate candidate slots.
+            /*
+            |--------------------------------------------------------------------------
+            |Generate candidate slots.
+            |--------------------------------------------------------------------------
+            */
             $slot = $periodStart->copy();
 
             while (
@@ -233,23 +243,33 @@ class AvailabilityService
                 $slotEnd = $slot->copy()
                     ->addMinutes($slotDuration);
 
-                // Check time-off conflicts.
+                /*
+                |--------------------------------------------------------------------------
+                |Check time-off conflicts.
+                |--------------------------------------------------------------------------
+                */
                 $conflictsWithTimeOff = $timeOffs->contains(
                     function ($timeOff) use ($slot, $slotEnd) {
                         return $slot->lt($timeOff->end_datetime)
                             && $slotEnd->gt($timeOff->start_datetime);
                     }
                 );
-
-                // Check confirmed/pending appointment conflicts.
+                /*
+                |--------------------------------------------------------------------------
+                | Check confirmed/pending appointment conflicts.
+                |--------------------------------------------------------------------------
+                */
                 $conflictsWithAppointment = $appointments->contains(
                     function ($appointment) use ($slot, $slotEnd) {
                         return $slot->lt($appointment->end_datetime)
                             && $slotEnd->gt($appointment->start_datetime);
                     }
                 );
-
-                // Only return slots that do not conflict with anything.
+                /*
+                |--------------------------------------------------------------------------
+                | Only return slots that do not conflict with anything.
+                |--------------------------------------------------------------------------
+                */
                 if (
                     !$conflictsWithTimeOff &&
                     !$conflictsWithAppointment
@@ -260,7 +280,12 @@ class AvailabilityService
                     ];
                 }
 
-                // Move to the next candidate slot.
+                /*
+                |--------------------------------------------------------------------------
+                | Move to the next candidate slot. As of the moment, its just hardcoded to
+                | 15 minutes, though this should be business based dependent
+                |--------------------------------------------------------------------------
+                */
                 $slot->addMinutes(15);
             }
         }
@@ -270,10 +295,12 @@ class AvailabilityService
 
 
     /*
-        *Helper function to validate the availabale time slots of an appointment. Ensure that the following are in sync on what validation method to use:
-        * 1. Availability Generation  (getAvailableSlotsForServices() -> this class)
-        * 2. Appointment creation (store() -> AppointmentController)
-        * 3. Appointment rescheduling  (reschedule() -> AppointmentController)
+    |=====================================================================================================================================================
+    |    *Helper function to validate the availabale time slots of an appointment. Ensure that the following are in sync on what validation method to use:
+    |    * 1. Availability Generation  (getAvailableSlotsForServices() -> this class)
+    |    * 2. Appointment creation (store() -> AppointmentController)
+    |    * 3. Appointment rescheduling  (reschedule() -> AppointmentController)
+    |=====================================================================================================================================================
     */
     public function validateSlot(
         Staff $staff,

@@ -97,7 +97,19 @@ class AvailabilityController extends Controller
         Business $business,
         AvailabilityService $availabilityService
     ) {
-        //Validate the requested params
+
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization: Ensure that the user has permission to view the business before accessing this endpoint.
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('view', $business);
+
+        /*
+        *--------------------------------------------------------------------------------------
+        | Ensure that the requested staff member and services belong to the requested business.
+        *--------------------------------------------------------------------------------------
+        */
         $validated = $request->validate([
             'staff_id' => [
                 'required',
@@ -121,29 +133,38 @@ class AvailabilityController extends Controller
             ],
         ]);
 
-        //Retrieve the requested staff member
+        /*
+        |---------------------------------------------------------------------------------------------
+        | Retrieve the requested staff member and services from the database using the validated input.
+        |---------------------------------------------------------------------------------------------
+        */
         $staff = Staff::findOrFail(
             $validated['staff_id']
         );
 
-        //All services requested by the user
         $services = Service::whereIn(
             'id',
             $validated['service_ids']
         )->get();
 
 
+        /*
+        |==========================
+        | VALIDATION SUB-SECTION    
+        |==========================
+        */
 
-        //VALIDATION SUB-SECTION:
-
-        // Making sure the staff belongs to the requested business.
+        /*
+        |---------------------------------------------------------------------------------------------
+        | Making sure the requested staff member and services belong to the requested business.
+        |---------------------------------------------------------------------------------------------
+        */
         if ($staff->business_id !== $business->id) {
             return response()->json([
                 'message' => 'The selected staff member does not belong to this business.',
             ], 404);
         }
 
-        // Making sure ALL services belong to the requested business 
         $invalidService = $services->first(
             fn($service) => $service->business_id !== $business->id
         );
@@ -154,14 +175,24 @@ class AvailabilityController extends Controller
             ], 404);
         }
 
-        //Call AvailabilityService.js to generate available slots
+        /*
+        |---------------------------------------------------------------------------------------------
+        | Call the AvailabilityService to generate available slots for the requested staff member 
+        | and services on the specified date.
+        |---------------------------------------------------------------------------------------------
+        */
         $slots = $availabilityService->getAvailableSlotsForServices(
             $staff,
             $services,
             $validated['date']
         );
 
-        //Return the availability list
+        /*
+        |---------------------------------------------------------------------------------------------
+        | Return the availability list as a JSON response, including the date, staff member details,
+        | service details, and available slots.
+        |---------------------------------------------------------------------------------------------
+        */
         return response()->json([
             'date' => $validated['date'],
 
