@@ -166,7 +166,7 @@ class AppointmentController extends Controller
             ->get();
 
         return response()->json([
-            'appointments' => $appointments,
+            'data' => $appointments,
         ]);
     }
 
@@ -351,7 +351,7 @@ class AppointmentController extends Controller
 
         return response()->json([
             'message' => 'Appointment created successfully.',
-            'appointment' => $appointment->load('appointmentServices.service'),
+            'data' => $appointment->load('appointmentServices.service'),
         ], 201);
     }
 
@@ -367,7 +367,7 @@ class AppointmentController extends Controller
         ]);
 
         return response()->json([
-            'appointment' => $appointment,
+            'data' => $appointment,
         ]);
     }
 
@@ -412,7 +412,7 @@ class AppointmentController extends Controller
 
         return response()->json([
             'message' => 'Appointment updated successfully.',
-            'appointment' => $appointment->fresh([
+            'data' => $appointment->fresh([
                 'customer',
                 'staff',
                 'appointmentServices.service',
@@ -556,7 +556,7 @@ class AppointmentController extends Controller
 
         return response()->json([
             'message' => 'Appointment rescheduled successfully.',
-            'appointment' => $appointment->fresh([
+            'data' => $appointment->fresh([
                 'customer',
                 'staff',
                 'appointmentServices.service',
