@@ -28,9 +28,12 @@ class StaffTimeOffController extends Controller
         );
 
         return response()->json(
-            $staff->timeOffs()
-                ->orderBy('start_datetime')
-                ->get()
+            [
+                'data' => $staff->timeOffs()
+                    ->orderBy('start_datetime')
+                    ->get()
+            ]
+
         );
     }
 
@@ -57,7 +60,10 @@ class StaffTimeOffController extends Controller
         );
 
         return response()->json(
-            $timeOff,
+            [
+                'message' => 'Staff time off created successfully.',
+                'data' => $timeOff
+            ],
             201
         );
     }
@@ -85,7 +91,9 @@ class StaffTimeOffController extends Controller
             404
         );
 
-        return response()->json($staffTimeOff);
+        return response()->json([
+            'data' => $staffTimeOff
+        ]);
     }
 
     //update a specific time-off record for a specific staff member
@@ -117,7 +125,10 @@ class StaffTimeOffController extends Controller
         );
 
         return response()->json(
-            $staffTimeOff->fresh()
+            [
+                'message' => 'Staff time off updated successfully.',
+                'data' => $staffTimeOff->fresh()
+            ]
         );
     }
 
