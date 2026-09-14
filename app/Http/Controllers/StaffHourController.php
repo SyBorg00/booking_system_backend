@@ -39,9 +39,11 @@ class StaffHourController extends Controller
         );
 
         return response()->json(
-            $staff->hours()
-                ->orderBy('day_of_week')
-                ->get()
+            [
+                'data' => $staff->hours()
+                    ->orderBy('day_of_week')
+                    ->get()
+            ]
         );
     }
 
@@ -68,7 +70,10 @@ class StaffHourController extends Controller
         );
 
         return response()->json(
-            $staffHour,
+            [
+                'message' => 'Staff hour created successfully.',
+                'data' => $staffHour
+            ],
             201
         );
     }
@@ -96,7 +101,11 @@ class StaffHourController extends Controller
             404
         );
 
-        return response()->json($staffHour);
+        return response()->json(
+            [
+                'data' => $staffHour
+            ]
+        );
     }
 
     //update a specific staff hour for a specific staff member in a business
@@ -128,7 +137,10 @@ class StaffHourController extends Controller
         );
 
         return response()->json(
-            $staffHour->fresh()
+            [
+                'message' => 'Staff hour updated successfully.',
+                'data' => $staffHour->fresh()
+            ]
         );
     }
 
