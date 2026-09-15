@@ -10,6 +10,7 @@ use App\Http\Controllers\StaffTimeOffController;
 use App\Http\Controllers\AvailabilityController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BusinessController;
 
 
 
@@ -44,9 +45,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     /*
     ==========================
-    BUSINESS PREFIX SECTION 
+    BUSINESS MAIN SECTION
     ==========================
     */
+    //store, update, delete, and show businesses --> all in a single route
+    Route::apiResource('businesses', BusinessController::class);
+
+    //Prefixing the business route to avoid repetition and to group related routes together
     Route::prefix('businesses/{business}')->group(function () {
 
         /*
