@@ -91,11 +91,13 @@ class BusinessPolicy
             return true;
         }
 
-        return $user->role === 'admin'
-            && $business->staff()
-            ->where('user_id', $user->id)
-            ->where('status', 'active')
-            ->exists();
+        if ($user->role === 'admin') {
+            return $user->businesses()
+                ->where('businesses.id', $business->id)
+                ->exists();
+        }
+
+        return false;
     }
 
     /**
