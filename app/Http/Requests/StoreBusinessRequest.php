@@ -23,55 +23,64 @@ class StoreBusinessRequest extends FormRequest
     public function rules(): array
     {
         return [
-            [
-                'name' => [
-                    'required',
-                    'string',
-                    'max:255'
-                ],
-                'slug' => [
-                    'nullable',
-                    'string',
-                    'max:255',
-                    'unique:businesses,slug'
-                ],
-                'description' => ['
-                nullable', 'string'],
-                'currency' => [
-                    'required',
-                    'string',
-                    'size:3'
-                ],
-                'phone' => [
-                    'nullable',
-                    'string',
-                    'max:50'
-                ],
-                'email' => [
-                    'nullable',
-                    'email',
-                    'max:255'
-                ],
-                'address' => [
-                    'nullable',
-                    'string',
-                    'max:500'
-                ],
-                'timezone' => [
-                    'required',
-                    'string',
-                    'max:100'
-                ],
-                'logo' => [
-                    'nullable',
-                    'string',
-                    'max:255'
-                ],
-                'status' => [
-                    'nullable',
-                    'in:active,inactive'
-                ],
-            ]
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+
+            'slug' => [
+                'nullable',
+                'string',
+                'max:255',
+                'unique:businesses,slug',
+            ],
+
+            'description' => [
+                'nullable',
+                'string',
+            ],
+
+            'currency' => [
+                'required',
+                'string',
+                'size:3',
+            ],
+
+            'phone' => [
+                'nullable',
+                'string',
+                'max:50',
+            ],
+
+            'email' => [
+                'nullable',
+                'email',
+                'max:255',
+            ],
+
+            'address' => [
+                'nullable',
+                'string',
+                'max:500',
+            ],
+
+            'timezone' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+
+            'logo' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+
+            'status' => [
+                'nullable',
+                'in:active,inactive',
+            ],
         ];
     }
 }
