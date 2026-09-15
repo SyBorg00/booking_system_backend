@@ -13,7 +13,16 @@ class BusinessPolicy
      */
     public function viewAny(User $user): bool
     {
-        return false;
+        /*
+        |--------------------------------------------------------------------------
+        | Any users with the role of super_admin, admin, or staff can view businesses.
+        |--------------------------------------------------------------------------
+        */
+        return in_array($user->role, [
+            'super_admin',
+            'admin',
+            'staff',
+        ]);
     }
 
     /**
@@ -60,7 +69,12 @@ class BusinessPolicy
      */
     public function create(User $user): bool
     {
-        return false;
+        /*
+        |--------------------------------------------------------------------------
+        | Only super admins can create businesses.
+        |--------------------------------------------------------------------------
+        */
+        return $user->role === 'super_admin';
     }
 
     /**
@@ -68,7 +82,20 @@ class BusinessPolicy
      */
     public function update(User $user, Business $business): bool
     {
-        return false;
+        /*
+        |--------------------------------------------------------------------------
+        | Super admins can update every business. Admins can update businesses they are assigned to.
+        |--------------------------------------------------------------------------
+        */
+        if ($user->role === 'super_admin') {
+            return true;
+        }
+
+        return $user->role === 'admin'
+            && $business->staff()
+            ->where('user_id', $user->id)
+            ->where('status', 'active')
+            ->exists();
     }
 
     /**
@@ -76,7 +103,12 @@ class BusinessPolicy
      */
     public function delete(User $user, Business $business): bool
     {
-        return false;
+        /*
+        |--------------------------------------------------------------------------
+        | Only super admins can delete businesses.
+        |--------------------------------------------------------------------------
+        */
+        return $user->role === 'super_admin';
     }
 
     /**
