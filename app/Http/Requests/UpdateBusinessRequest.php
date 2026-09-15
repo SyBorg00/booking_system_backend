@@ -26,68 +26,75 @@ class UpdateBusinessRequest extends FormRequest
         $business = $this->route('business');
 
         return [
-            [
-                'name' => [
-                    'sometimes',
-                    'required',
-                    'string',
-                    'max:255'
-                ],
-                'slug' => [
-                    'sometimes',
-                    'required',
-                    'string',
-                    'max:255',
-                    Rule::unique('businesses', 'slug')
-                        ->ignore($business->id),
-                ],
-                'description' => [
-                    'sometimes',
-                    'nullable',
-                    'string'
-                ],
-                'currency' => [
-                    'sometimes',
-                    'required',
-                    'string',
-                    'size:3'
-                ],
-                'phone' => [
-                    'sometimes',
-                    'nullable',
-                    'string',
-                    'max:50'
-                ],
-                'email' => [
-                    'sometimes',
-                    'nullable',
-                    'email',
-                    'max:255'
-                ],
-                'address' => [
-                    'sometimes',
-                    'nullable',
-                    'string',
-                    'max:500'
-                ],
-                'timezone' => [
-                    'sometimes',
-                    'required',
-                    'string',
-                    'max:100'
-                ],
-                'logo' => [
-                    'sometimes',
-                    'nullable',
-                    'string',
-                    'max:255'
-                ],
-                'status' => [
-                    'sometimes',
-                    'required',
-                    'in:active,inactive'
-                ],
-            ]
+            'name' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:255',
+            ],
+
+            'slug' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('businesses', 'slug')
+                    ->ignore($business->id),
+            ],
+
+            'description' => [
+                'sometimes',
+                'nullable',
+                'string',
+            ],
+
+            'currency' => [
+                'sometimes',
+                'required',
+                'string',
+                'size:3',
+            ],
+
+            'phone' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:50',
+            ],
+
+            'email' => [
+                'sometimes',
+                'nullable',
+                'email',
+                'max:255',
+            ],
+
+            'address' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:500',
+            ],
+
+            'timezone' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:100',
+            ],
+
+            'logo' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:255',
+            ],
+
+            'status' => [
+                'sometimes',
+                'required',
+                'in:active,inactive',
+            ],
         ];
     }
 }
