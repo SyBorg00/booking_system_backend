@@ -1,3 +1,17 @@
+
+# Booking & Appointment System API
+
+A RESTful API for managing businesses, staff, customers,
+services, schedules, availability, and appointments.
+
+## Tech Stack
+- Laravel
+- PHP
+- MySQL
+- Laravel Sanctum
+- React/Next.js frontend (planned)
+
+For details on the documentation: https://app.notion.com/p/Booking-System-3db78bc7aef280039458e6c1a4bdf1a1?source=copy_link
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
 <p align="center">
