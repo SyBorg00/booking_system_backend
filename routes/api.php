@@ -44,6 +44,15 @@ AUTHENTICATED API ROUTE MAIN-SECTION
 Route::middleware('auth:sanctum')->group(function () {
 
     /*
+    ====================
+    USER MAIN SECTION
+    ====================
+    */
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    })->middleware('auth:sanctum');
+
+    /*
     ==========================
     BUSINESS MAIN SECTION
     ==========================
@@ -54,14 +63,7 @@ Route::middleware('auth:sanctum')->group(function () {
     //Prefixing the business route to avoid repetition and to group related routes together
     Route::prefix('businesses/{business}')->group(function () {
 
-        /*
-        ====================
-        USER SUB-SECTION 
-        ====================
-        */
-        Route::get('/user', function (Request $request) {
-            return $request->user();
-        })->middleware('auth:sanctum');
+
 
         /*
         ====================
