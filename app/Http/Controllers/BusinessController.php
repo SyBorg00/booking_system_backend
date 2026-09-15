@@ -38,8 +38,6 @@ class BusinessController extends Controller
 
         $validated = $request->validated();
 
-        $validated['slug'] ??= Str::slug($validated['name']);
-
         $business = Business::create($validated);
 
         return response()->json([

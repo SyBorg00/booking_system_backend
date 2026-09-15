@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
 
 class StoreBusinessRequest extends FormRequest
 {
@@ -13,6 +14,16 @@ class StoreBusinessRequest extends FormRequest
     public function authorize(): bool
     {
         return true;
+    }
+
+    //Custom function to check the slug field and generate it from the name field if it's not provided
+    protected function prepareForValidation(): void
+    {
+        if (!$this->filled('slug') && $this->filled('name')) {
+            $this->merge([
+                'slug' => Str::slug($this->input('name')),
+            ]);
+        }
     }
 
     /**
