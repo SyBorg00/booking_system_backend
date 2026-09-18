@@ -11,6 +11,7 @@ use App\Http\Controllers\AvailabilityController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BusinessController;
+use App\Http\Controllers\StaffServiceController;
 
 
 
@@ -166,6 +167,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
         //delete a specific time-off record from a specific staff member
         Route::delete('staff/{staff}/time-offs/{staffTimeOff}', [StaffTimeOffController::class, 'destroy']);
+
+        /*
+        ============================
+        STAFF SERVICES SUB-SECTION 
+        ============================
+        */
+        Route::get('staff/{staff}/services', [StaffServiceController::class, 'index']);
+
+        Route::post('staff/{staff}/services', [StaffServiceController::class, 'store']);
+
+        Route::delete('staff/{staff}/services/{service}', [StaffServiceController::class, 'destroy']);
     });
 
     /*
