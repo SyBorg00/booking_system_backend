@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
-
+use App\Http\Requests\StoreAppointmentRequest;
 
 class AppointmentController extends Controller
 {
@@ -172,52 +172,15 @@ class AppointmentController extends Controller
 
     //Adds a new appointment for a business, customer, and staff member
     public function store(
-        Request $request,
+        StoreAppointmentRequest $request,
         AvailabilityService $availabilityService
     ) {
-
         /*
         |--------------------------------------------------------------------------
-        | Verification request are put in here instead of creating another request file
+        | Validate the request data
         |--------------------------------------------------------------------------
         */
-        $validated = $request->validate([
-            'business_id' => [
-                'required',
-                'integer',
-                'exists:businesses,id'
-            ],
-            'customer_id' => [
-                'required',
-                'integer',
-                'exists:customers,id'
-            ],
-            'staff_id' => [
-                'required',
-                'integer',
-                'exists:staff,id'
-            ],
-            'start_datetime' => [
-                'required',
-                'date'
-            ],
-            'services' => [
-                'required',
-                'array',
-                'min:1'
-            ],
-            'services.*.service_id' => [
-                'required',
-                'integer',
-                'distinct',
-                'exists:services,id',
-            ],
-            'notes' => [
-                'nullable',
-                'string'
-            ],
-        ]);
-
+        $validated = $request->validated();
         /*
         |--------------------------------------------------------------------------
         | Retrieve business then add authorization check to ensure the user has 
@@ -300,7 +263,6 @@ class AppointmentController extends Controller
         | Check staff availability for the requested time slot (NOW USES VALIDATESLOT from AvailabilityService)
         |--------------------------------------------------------------------------
         */
-
         $conflictMessage = $availabilityService->validateSlot(
             $staff,
             $start,
