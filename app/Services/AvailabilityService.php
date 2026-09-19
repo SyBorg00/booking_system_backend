@@ -17,7 +17,18 @@ class AvailabilityService
         Service $service,
         string $date
     ): array {
+
+        /*
+    |--------------------------------------------------------------------------
+    | Verify that the staff member provides this service.
+    |--------------------------------------------------------------------------
+    */
+        if (!$this->staffProvidesServices($staff, collect([$service]))) {
+            return [];
+        }
         $date = Carbon::parse($date);
+
+
 
 
         //The requested day's boundaries.
@@ -151,6 +162,14 @@ class AvailabilityService
         Collection $services,
         string $date
     ): array {
+        /*
+        |--------------------------------------------------------------------------
+        | Verify that the staff member provides all requested services.
+        |--------------------------------------------------------------------------
+        */
+        if (!$this->staffProvidesServices($staff, $services)) {
+            return [];
+        }
         $date = Carbon::parse($date);
 
         $dayStart = $date->copy()->startOfDay();
@@ -291,6 +310,33 @@ class AvailabilityService
         }
 
         return $availableSlots;
+    }
+
+    /*
+    |-----------------------------------------------------------------------------------------
+    | Helper function to check if a staff member provides all the requested services.
+    |------------------------------------------------------------------------------------------
+    | Will be used in the appointment creation and rescheduling process to ensure that 
+    | the staff member can actually provide all the requested services.
+    |-----------------------------------------------------------------------------------------
+    */
+    private function staffProvidesServices(
+        Staff $staff,
+        Collection $services
+    ): bool {
+        $serviceIds = $services
+            ->pluck('id')
+            ->unique();
+
+        if ($serviceIds->isEmpty()) {
+            return false;
+        }
+
+        $assignedServiceCount = $staff->services()
+            ->whereIn('services.id', $serviceIds)
+            ->count();
+
+        return $assignedServiceCount === $serviceIds->count();
     }
 
 
