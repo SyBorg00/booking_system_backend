@@ -188,9 +188,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('availability', [AvailabilityController::class, 'generateSlots']);
     });
 
-    //fetching w/ multiple services
-    Route::get('/businesses/{business}/availability', [AvailabilityController::class, 'generateSlots']);
-
     /*
     |========================================================================
     |APPOINTMENT SECTION
