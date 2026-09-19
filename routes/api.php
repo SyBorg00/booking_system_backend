@@ -178,15 +178,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('staff/{staff}/services', [StaffServiceController::class, 'store']);
 
         Route::delete('staff/{staff}/services/{service}', [StaffServiceController::class, 'destroy']);
-    });
 
-    /*
-    |====================
-    |AVAILABILITY SECTION
-    |====================
-    */
-    // //fetching w/ only one service (will be commented as of the moment)
-    // Route::get('/businesses/{business}/availability', [AvailabilityController::class, 'index']);
+        /*
+        |========================
+        |AVAILABILITY SUB-SECTION
+        |========================
+        */
+        // Route::get('availability', [AvailabilityController::class, 'index']);
+        Route::get('availability', [AvailabilityController::class, 'generateSlots']);
+    });
 
     //fetching w/ multiple services
     Route::get('/businesses/{business}/availability', [AvailabilityController::class, 'generateSlots']);
