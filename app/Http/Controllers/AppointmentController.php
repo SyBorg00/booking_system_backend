@@ -442,6 +442,28 @@ class AppointmentController extends Controller
                 'message' => 'The appointment has no services attached to it.',
             ], 422);
         }
+        /*
+        |--------------------------------------------------------------------------
+        | Verify that the new staff member provides all appointment services (in case the staff member is changed)
+        |--------------------------------------------------------------------------
+        */
+        $serviceIds = $appointmentServices
+            ->pluck('service_id')
+            ->unique();
+
+        $assignedServiceIds = $staff->services()
+            ->whereIn('services.id', $serviceIds)
+            ->pluck('services.id');
+
+        $unassignedServiceIds = $serviceIds->diff(
+            $assignedServiceIds
+        );
+
+        if ($unassignedServiceIds->isNotEmpty()) {
+            return response()->json([
+                'message' => 'The selected staff member does not provide one or more services in this appointment.',
+            ], 422);
+        }
 
         /*
         |--------------------------------------------------------------------------
