@@ -37,6 +37,7 @@ class StoreAppointmentRequest extends FormRequest
             'start_datetime' => [
                 'required',
                 'date',
+                'after_or_equal:now',
             ],
 
             'services' => [

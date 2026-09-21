@@ -405,6 +405,7 @@ class AppointmentController extends Controller
             'start_datetime' => [
                 'required',
                 'date',
+                'after_or_equal:now',
             ],
         ]);
 
