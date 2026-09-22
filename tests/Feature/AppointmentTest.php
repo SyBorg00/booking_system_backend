@@ -16,10 +16,14 @@ class AppointmentTest extends TestCase
 {
     use RefreshDatabase;
 
-    //This is to test the appointment creation functionality
+    //This is to test a normal appointment creation flow
     public function test_user_can_create_appointment(): void
     {
-        // Arrange
+        /*
+        |---------------------------------------------
+        | ARRANGE TABLE
+        |---------------------------------------------
+        */
 
         // Create the business
         $business = Business::factory()->create();
@@ -60,8 +64,11 @@ class AppointmentTest extends TestCase
             'is_off' => false,
         ]);
 
-        // Act
-
+        /*
+        |---------------------------------------------
+        | EXECUTE
+        |---------------------------------------------
+        */
         $response = $this->postJson('/api/appointments', [
             'business_id' => $business->id,
             'customer_id' => $customer->id,
@@ -75,8 +82,11 @@ class AppointmentTest extends TestCase
             'notes' => 'Test appointment',
         ]);
 
-        // Assert
-
+        /*
+        |---------------------------------------------
+        | ASSERT STATUS
+        |---------------------------------------------
+        */
         $response->assertStatus(201);
 
         $response->assertJson([
@@ -102,10 +112,14 @@ class AppointmentTest extends TestCase
         ]);
     }
 
-    //This is to test that a user cannot create an appointment in the past
+    //This is to test that a user cannot create an appointment past the current date
     public function test_cannot_create_past_appointment(): void
     {
-        // Arrange
+        /*
+        |---------------------------------------------
+        | ARRANGE TABLE
+        |---------------------------------------------
+        */
         $business = Business::factory()->create();
 
         $user = User::factory()->create();
@@ -137,7 +151,11 @@ class AppointmentTest extends TestCase
             'is_off' => false,
         ]);
 
-        // Act
+        /*
+        |---------------------------------------------
+        | EXECUTE
+        |---------------------------------------------
+        */
         $response = $this->postJson('/api/appointments', [
             'business_id' => $business->id,
             'customer_id' => $customer->id,
@@ -159,5 +177,85 @@ class AppointmentTest extends TestCase
         ]);
 
         $this->assertDatabaseCount('appointments', 0);
+    }
+
+    //This is to test that that a staff w/ no assigned service cannot create an appointment w/ said specified service
+    public function test_cannot_create_appointment_with_unassigned_service(): void
+    {
+        /*
+        |---------------------------------------------
+        | ARRANGE TABLE
+        |---------------------------------------------
+        */
+        $business = Business::factory()->create();
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user, 'sanctum');
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+            'user_id' => $user->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        /*
+        |================================================
+        | IMPORTANT:
+        |------------------------------------------------
+        | Do NOT assign the service to the staff member
+        | for this test to work
+        |
+        */
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => 4, // Thursday
+            'start_time' => '09:00',
+            'end_time' => '17:00',
+            'is_off' => false,
+        ]);
+
+        /*
+        |---------------------------------------------
+        | EXECUTE
+        |---------------------------------------------
+        */
+        $response = $this->postJson('/api/appointments', [
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => '2026-10-01 09:00:00',
+            'services' => [
+                [
+                    'service_id' => $service->id,
+                ],
+            ],
+            'notes' => 'Unassigned service test',
+        ]);
+
+        /*
+        |---------------------------------------------
+        | ASSERT STATUS
+        |---------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors([
+            'services',
+        ]);
+
+        $this->assertDatabaseCount('appointments', 0);
+
+        $this->assertDatabaseCount('appointment_services', 0);
     }
 }
