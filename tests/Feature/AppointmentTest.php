@@ -332,4 +332,88 @@ class AppointmentTest extends TestCase
         $this->assertDatabaseCount('appointments', 0);
         $this->assertDatabaseCount('appointment_services', 0);
     }
+
+    //This is to test that a user cannot create an appointment that conflicts with an existing appointment for the same staff member
+    public function test_cannot_create_conflicting_appointment(): void
+    {
+        /*
+        |---------------------------------------------
+        | ARRANGE TABLE
+        |---------------------------------------------
+        */
+        $business = Business::factory()->create();
+
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+            'user_id' => $user->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $firstService = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($firstService->id);
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => 4,
+            'start_time' => '09:00',
+            'end_time' => '17:00',
+            'is_off' => false,
+        ]);
+
+        // Create the first appointment
+        $firstResponse = $this->postJson('/api/appointments', [
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => '2026-10-01 09:00:00',
+            'services' => [
+                ['service_id' => $firstService->id],
+            ],
+            'notes' => 'First appointment',
+        ]);
+
+        $firstResponse->assertStatus(201);
+
+        /*
+        |---------------------------------------------
+        | EXECUTE
+        |---------------------------------------------
+        |   attempt to create another appointment during the same slot
+        */
+        $secondResponse = $this->postJson('/api/appointments', [
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => '2026-10-01 09:15:00',
+            'services' => [
+                ['service_id' => $firstService->id],
+            ],
+            'notes' => 'Conflicting appointment',
+        ]);
+
+        /*
+        |---------------------------------------------
+        | ASSERT STATUS
+        |---------------------------------------------
+        */
+        $secondResponse->assertStatus(422);
+        $secondResponse->assertJsonValidationErrors(['start_datetime']);
+
+        $this->assertDatabaseCount('appointments', 1);
+        $this->assertDatabaseCount('appointment_services', 1);
+    }
 }
