@@ -416,4 +416,107 @@ class AppointmentTest extends TestCase
         $this->assertDatabaseCount('appointments', 1);
         $this->assertDatabaseCount('appointment_services', 1);
     }
+
+    //This is to test that when an appointment is cancelled, the time slot is released and can be booked again
+    public function test_cancelled_appointment_releases_time_slot(): void
+    {
+        /*
+        |---------------------------------------------
+        | ARRANGE TABLE
+        |---------------------------------------------
+        */
+        $business = Business::factory()->create();
+
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+            'user_id' => $user->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => 4,
+            'start_time' => '09:00',
+            'end_time' => '17:00',
+            'is_off' => false,
+        ]);
+
+        // Create the first appointment
+        $firstResponse = $this->postJson('/api/appointments', [
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => '2026-10-01 09:00:00',
+            'services' => [
+                ['service_id' => $service->id],
+            ],
+            'notes' => 'Appointment to be cancelled',
+        ]);
+
+        $firstResponse->assertStatus(201);
+
+        $firstAppointment = Appointment::latest('id')->first();
+
+        $this->assertNotNull($firstAppointment);
+
+        // Cancel the first appointment
+        $cancelResponse = $this->patchJson(
+            "/api/appointments/{$firstAppointment->id}",
+            [
+                'status' => 'cancelled',
+            ]
+        );
+
+        $cancelResponse->assertStatus(200);
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $firstAppointment->id,
+            'status' => 'cancelled',
+        ]);
+
+        /*
+        |---------------------------------------------
+        | EXECUTE
+        |---------------------------------------------
+        |  Now attempt to create another appointment
+        |  in the same time slot
+        */
+        $secondResponse = $this->postJson('/api/appointments', [
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => '2026-10-01 09:00:00',
+            'services' => [
+                ['service_id' => $service->id],
+            ],
+            'notes' => 'Appointment after cancellation',
+        ]);
+
+        /*
+        |---------------------------------------------
+        | ASSERT STATUS
+        |---------------------------------------------
+        */
+        $secondResponse->assertStatus(201);
+
+        $this->assertDatabaseCount('appointments', 2);
+        $this->assertDatabaseCount('appointment_services', 2);
+    }
 }
