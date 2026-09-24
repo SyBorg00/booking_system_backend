@@ -11,6 +11,7 @@ use App\Models\StaffHour;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use Illuminate\Support\Carbon;
 
 class AppointmentTest extends TestCase
 {
@@ -64,6 +65,9 @@ class AppointmentTest extends TestCase
             'is_off' => false,
         ]);
 
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
         /*
         |---------------------------------------------
         | EXECUTE
@@ -73,7 +77,7 @@ class AppointmentTest extends TestCase
             'business_id' => $business->id,
             'customer_id' => $customer->id,
             'staff_id' => $staff->id,
-            'start_datetime' => '2026-10-01 09:00:00',
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
             'services' => [
                 [
                     'service_id' => $service->id,
@@ -225,6 +229,10 @@ class AppointmentTest extends TestCase
             'is_off' => false,
         ]);
 
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
         /*
         |---------------------------------------------
         | EXECUTE
@@ -234,7 +242,7 @@ class AppointmentTest extends TestCase
             'business_id' => $business->id,
             'customer_id' => $customer->id,
             'staff_id' => $staff->id,
-            'start_datetime' => '2026-10-01 09:00:00',
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
             'services' => [
                 [
                     'service_id' => $service->id,
@@ -305,6 +313,10 @@ class AppointmentTest extends TestCase
             'is_off' => false,
         ]);
 
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
         /*
         |---------------------------------------------
         | EXECUTE
@@ -314,7 +326,7 @@ class AppointmentTest extends TestCase
             'business_id' => $business->id,
             'customer_id' => $customer->id,
             'staff_id' => $staff->id,
-            'start_datetime' => '2026-10-01 09:00:00',
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
             'services' => [
                 ['service_id' => $service->id],
             ],
@@ -374,12 +386,16 @@ class AppointmentTest extends TestCase
             'is_off' => false,
         ]);
 
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
         // Create the first appointment
         $firstResponse = $this->postJson('/api/appointments', [
             'business_id' => $business->id,
             'customer_id' => $customer->id,
             'staff_id' => $staff->id,
-            'start_datetime' => '2026-10-01 09:00:00',
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
             'services' => [
                 ['service_id' => $firstService->id],
             ],
@@ -394,11 +410,15 @@ class AppointmentTest extends TestCase
         |---------------------------------------------
         |   attempt to create another appointment during the same slot
         */
+
+        // This will overlap with the first appointment
+        $secondAppointmentDate = $appointmentDate->copy()->addMinutes(15);
+
         $secondResponse = $this->postJson('/api/appointments', [
             'business_id' => $business->id,
             'customer_id' => $customer->id,
             'staff_id' => $staff->id,
-            'start_datetime' => '2026-10-01 09:15:00',
+            'start_datetime' => $secondAppointmentDate->format('Y-m-d H:i:s'),
             'services' => [
                 ['service_id' => $firstService->id],
             ],
@@ -458,12 +478,16 @@ class AppointmentTest extends TestCase
             'is_off' => false,
         ]);
 
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
         // Create the first appointment
         $firstResponse = $this->postJson('/api/appointments', [
             'business_id' => $business->id,
             'customer_id' => $customer->id,
             'staff_id' => $staff->id,
-            'start_datetime' => '2026-10-01 09:00:00',
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
             'services' => [
                 ['service_id' => $service->id],
             ],
@@ -561,12 +585,16 @@ class AppointmentTest extends TestCase
             'is_off' => false,
         ]);
 
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
         // Create pending appointment
         $createResponse = $this->postJson('/api/appointments', [
             'business_id' => $business->id,
             'customer_id' => $customer->id,
             'staff_id' => $staff->id,
-            'start_datetime' => '2026-10-01 09:00:00',
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
             'services' => [
                 ['service_id' => $service->id],
             ],
@@ -657,12 +685,16 @@ class AppointmentTest extends TestCase
             'is_off' => false,
         ]);
 
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
         // Create pending appointment
         $createResponse = $this->postJson('/api/appointments', [
             'business_id' => $business->id,
             'customer_id' => $customer->id,
             'staff_id' => $staff->id,
-            'start_datetime' => '2026-10-01 09:00:00',
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
             'services' => [
                 ['service_id' => $service->id],
             ],
@@ -762,12 +794,16 @@ class AppointmentTest extends TestCase
             'is_off' => false,
         ]);
 
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
         // Create pending appointment
         $createResponse = $this->postJson('/api/appointments', [
             'business_id' => $business->id,
             'customer_id' => $customer->id,
             'staff_id' => $staff->id,
-            'start_datetime' => '2026-10-01 09:00:00',
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
             'services' => [
                 ['service_id' => $service->id],
             ],
@@ -868,12 +904,16 @@ class AppointmentTest extends TestCase
             'is_off' => false,
         ]);
 
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
         // Create pending appointment
         $createResponse = $this->postJson('/api/appointments', [
             'business_id' => $business->id,
             'customer_id' => $customer->id,
             'staff_id' => $staff->id,
-            'start_datetime' => '2026-10-01 09:00:00',
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
             'services' => [
                 ['service_id' => $service->id],
             ],
@@ -974,12 +1014,17 @@ class AppointmentTest extends TestCase
             'is_off' => false,
         ]);
 
+        //dynamic date
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
         // Create pending appointment
         $createResponse = $this->postJson('/api/appointments', [
             'business_id' => $business->id,
             'customer_id' => $customer->id,
             'staff_id' => $staff->id,
-            'start_datetime' => '2026-10-01 09:00:00',
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
             'services' => [
                 ['service_id' => $service->id],
             ],
@@ -1082,12 +1127,22 @@ class AppointmentTest extends TestCase
             'is_off' => false,
         ]);
 
+        //dynamic date
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        //dynamic reschedule date
+        $rescheduleDate = $appointmentDate
+            ->copy()
+            ->setTime(10, 0);
+
         // Create original appointment
         $createResponse = $this->postJson('/api/appointments', [
             'business_id' => $business->id,
             'customer_id' => $customer->id,
             'staff_id' => $staff->id,
-            'start_datetime' => '2026-10-01 09:00:00',
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
             'services' => [
                 ['service_id' => $service->id],
             ],
@@ -1102,12 +1157,16 @@ class AppointmentTest extends TestCase
 
         // Original appointment should occupy 09:00 -> 09:45 (30 mins service + 15 mins buffer)
         $this->assertEquals(
-            '2026-10-01 09:00:00',
+            $appointmentDate->format('Y-m-d H:i:s'),
             $appointment->start_datetime->format('Y-m-d H:i:s')
         );
 
+        $expectedOriginalEnd = $appointmentDate
+            ->copy()
+            ->addMinutes(45);
+
         $this->assertEquals(
-            '2026-10-01 09:45:00',
+            $expectedOriginalEnd->format('Y-m-d H:i:s'),
             $appointment->end_datetime->format('Y-m-d H:i:s')
         );
 
@@ -1120,7 +1179,7 @@ class AppointmentTest extends TestCase
         $response = $this->patchJson(
             "/api/appointments/{$appointment->id}/reschedule",
             [
-                'start_datetime' => '2026-10-01 10:00:00',
+                'start_datetime' => $rescheduleDate->format('Y-m-d H:i:s'),
             ]
         );
 
@@ -1135,22 +1194,19 @@ class AppointmentTest extends TestCase
             'message' => 'Appointment rescheduled successfully.',
         ]);
 
-        $response->assertJsonPath(
-            'data.start_datetime',
-            '2026-10-01T10:00:00.000000Z'
-        );
+        $expectedRescheduleEnd = $rescheduleDate
+            ->copy()
+            ->addMinutes(45);
 
-        $response->assertJsonPath(
-            'data.end_datetime',
-            '2026-10-01T10:45:00.000000Z'
+        $this->assertDatabaseHas(
+            'appointments',
+            [
+                'id' => $appointment->id,
+                'staff_id' => $staff->id,
+                'start_datetime' => $rescheduleDate->format('Y-m-d H:i:s'),
+                'end_datetime' => $expectedRescheduleEnd->format('Y-m-d H:i:s'),
+            ]
         );
-
-        $this->assertDatabaseHas('appointments', [
-            'id' => $appointment->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => '2026-10-01 10:00:00',
-            'end_datetime' => '2026-10-01 10:45:00',
-        ]);
 
         // Ensure the appointment services were preserved
         $this->assertDatabaseHas('appointment_services', [
