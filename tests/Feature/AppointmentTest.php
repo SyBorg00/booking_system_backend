@@ -1040,4 +1040,124 @@ class AppointmentTest extends TestCase
             'status' => 'completed',
         ]);
     }
+
+    //This is to test that a user can reschedule an existing appointment to a new valid time slot
+    public function test_can_reschedule_appointment(): void
+    {
+        /*
+        |---------------------------------------------
+        | ARRANGE TABLE
+        |---------------------------------------------
+        */
+        $business = Business::factory()->create();
+
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+            'user_id' => $user->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => 4,
+            'start_time' => '09:00',
+            'end_time' => '17:00',
+            'is_off' => false,
+        ]);
+
+        // Create original appointment
+        $createResponse = $this->postJson('/api/appointments', [
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => '2026-10-01 09:00:00',
+            'services' => [
+                ['service_id' => $service->id],
+            ],
+            'notes' => 'Reschedule test',
+        ]);
+
+        $createResponse->assertStatus(201);
+
+        $appointment = Appointment::latest('id')->first();
+
+        $this->assertNotNull($appointment);
+
+        // Original appointment should occupy 09:00 -> 09:45 (30 mins service + 15 mins buffer)
+        $this->assertEquals(
+            '2026-10-01 09:00:00',
+            $appointment->start_datetime->format('Y-m-d H:i:s')
+        );
+
+        $this->assertEquals(
+            '2026-10-01 09:45:00',
+            $appointment->end_datetime->format('Y-m-d H:i:s')
+        );
+
+        /*
+        |---------------------------------------------
+        | EXECUTE
+        |---------------------------------------------
+        */
+        //reschedule to 10:00
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'start_datetime' => '2026-10-01 10:00:00',
+            ]
+        );
+
+        /*
+        |---------------------------------------------
+        | ASSERT STATUS
+        |---------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJson([
+            'message' => 'Appointment rescheduled successfully.',
+        ]);
+
+        $response->assertJsonPath(
+            'data.start_datetime',
+            '2026-10-01T10:00:00.000000Z'
+        );
+
+        $response->assertJsonPath(
+            'data.end_datetime',
+            '2026-10-01T10:45:00.000000Z'
+        );
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => '2026-10-01 10:00:00',
+            'end_datetime' => '2026-10-01 10:45:00',
+        ]);
+
+        // Ensure the appointment services were preserved
+        $this->assertDatabaseHas('appointment_services', [
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+    }
 }
