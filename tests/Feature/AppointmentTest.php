@@ -826,4 +826,110 @@ class AppointmentTest extends TestCase
             'status' => 'cancelled',
         ]);
     }
+
+
+    public function test_can_mark_confirmed_appointment_as_no_show(): void
+    {
+        /*
+        |---------------------------------------------
+        | ARRANGE TABLE
+        |---------------------------------------------
+        */
+        $business = Business::factory()->create();
+
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+            'user_id' => $user->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => 4,
+            'start_time' => '09:00',
+            'end_time' => '17:00',
+            'is_off' => false,
+        ]);
+
+        // Create pending appointment
+        $createResponse = $this->postJson('/api/appointments', [
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => '2026-10-01 09:00:00',
+            'services' => [
+                ['service_id' => $service->id],
+            ],
+            'notes' => 'No-show appointment test',
+        ]);
+
+        $createResponse->assertStatus(201);
+
+        $appointment = Appointment::latest('id')->first();
+
+        $this->assertNotNull($appointment);
+        $this->assertEquals('pending', $appointment->status);
+
+        // Confirm appointment first
+        $confirmResponse = $this->patchJson(
+            "/api/appointments/{$appointment->id}",
+            [
+                'status' => 'confirmed',
+            ]
+        );
+
+        $confirmResponse->assertStatus(200);
+
+        /*
+        |---------------------------------------------
+        | EXECUTE
+        |---------------------------------------------
+        */
+
+        //mark the confirmed appointment as no-show
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}",
+            [
+                'status' => 'no_show',
+            ]
+        );
+
+        /*
+        |---------------------------------------------
+        | ASSERT STATUS
+        |---------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJson([
+            'message' => 'Appointment updated successfully.',
+        ]);
+
+        $response->assertJsonPath(
+            'data.status',
+            'no_show'
+        );
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'status' => 'no_show',
+        ]);
+    }
 }
