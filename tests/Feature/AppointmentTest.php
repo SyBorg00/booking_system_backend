@@ -1216,4 +1216,103 @@ class AppointmentTest extends TestCase
             'buffer_minutes' => 15,
         ]);
     }
+
+    //This is to test that a user cannot reschedule an existing appointment to a past time slot
+    public function test_cannot_reschedule_appointment_to_past(): void
+    {
+        /*
+        |---------------------------------------------
+        | ARRANGE TABLE
+        |---------------------------------------------
+        */
+        $business = Business::factory()->create();
+
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+            'user_id' => $user->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '09:00',
+            'end_time' => '17:00',
+            'is_off' => false,
+        ]);
+
+        // Create a valid future appointment
+        $createResponse = $this->postJson('/api/appointments', [
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
+            'services' => [
+                ['service_id' => $service->id],
+            ],
+            'notes' => 'Past reschedule test',
+        ]);
+
+        $createResponse->assertStatus(201);
+
+        $appointment = Appointment::latest('id')->first();
+
+        $this->assertNotNull($appointment);
+
+        // Create a dynamically generated past date
+        $pastDate = Carbon::now()
+            ->subDay()
+            ->setTime(9, 0);
+
+        /*
+        |---------------------------------------------
+        | EXECUTE
+        |---------------------------------------------
+        */
+        // attempt to reschedule into the past
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'start_datetime' => $pastDate->format('Y-m-d H:i:s'),
+            ]
+        );
+
+        /*
+        |---------------------------------------------
+        | ASSERT STATUS
+        |---------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors([
+            'start_datetime',
+        ]);
+
+        // Ensure the original appointment was not changed
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
+        ]);
+    }
 }
