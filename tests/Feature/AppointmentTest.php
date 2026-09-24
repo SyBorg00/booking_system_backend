@@ -827,7 +827,7 @@ class AppointmentTest extends TestCase
         ]);
     }
 
-
+    //This is to test that a user can mark a confirmed appointment as no-show
     public function test_can_mark_confirmed_appointment_as_no_show(): void
     {
         /*
@@ -930,6 +930,114 @@ class AppointmentTest extends TestCase
         $this->assertDatabaseHas('appointments', [
             'id' => $appointment->id,
             'status' => 'no_show',
+        ]);
+    }
+
+    //This is to test that a user cannot transition an appointment's current status to an invalid status (e.g., from completed back to confirmed)
+    public function test_rejects_invalid_status_transition(): void
+    {
+        /*
+        |---------------------------------------------
+        | ARRANGE TABLE
+        |---------------------------------------------
+        */
+        $business = Business::factory()->create();
+
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+            'user_id' => $user->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => 4,
+            'start_time' => '09:00',
+            'end_time' => '17:00',
+            'is_off' => false,
+        ]);
+
+        // Create pending appointment
+        $createResponse = $this->postJson('/api/appointments', [
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => '2026-10-01 09:00:00',
+            'services' => [
+                ['service_id' => $service->id],
+            ],
+            'notes' => 'Invalid transition test',
+        ]);
+
+        $createResponse->assertStatus(201);
+
+        $appointment = Appointment::latest('id')->first();
+
+        $this->assertNotNull($appointment);
+
+        // Confirm appointment
+        $confirmResponse = $this->patchJson(
+            "/api/appointments/{$appointment->id}",
+            [
+                'status' => 'confirmed',
+            ]
+        );
+
+        $confirmResponse->assertStatus(200);
+
+        // Complete appointment
+        $completeResponse = $this->patchJson(
+            "/api/appointments/{$appointment->id}",
+            [
+                'status' => 'completed',
+            ]
+        );
+
+        $completeResponse->assertStatus(200);
+
+        /*
+        |---------------------------------------------
+        | EXECUTE
+        |---------------------------------------------
+        */
+
+        //Attempt invalid transition: completed -> confirmed
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}",
+            [
+                'status' => 'confirmed',
+            ]
+        );
+
+        /*
+        |---------------------------------------------
+        | ASSERT STATUS
+        |---------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors(['status']);
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'status' => 'completed',
         ]);
     }
 }
