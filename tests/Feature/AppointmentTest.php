@@ -1571,4 +1571,116 @@ class AppointmentTest extends TestCase
             'buffer_minutes' => 15,
         ]);
     }
+
+    // This is to test that a user cannot reschedule an existing appointment to a different staff member who does not provide the service.
+    public function test_cannot_reschedule_appointment_to_staff_without_service(): void
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | ARRANGE TABLE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $originalStaff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $newStaff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        // Only the original staff provides the service.
+        $originalStaff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        // Both staff members are working on this day.
+        StaffHour::create([
+            'staff_id' => $originalStaff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        StaffHour::create([
+            'staff_id' => $newStaff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $originalStaff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | EXECUTE
+        |--------------------------------------------------------------------------
+        */
+        $newStart = $appointmentDate
+            ->copy()
+            ->setTime(10, 0);
+
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'staff_id' => $newStaff->id,
+                'start_datetime' => $newStart->format('Y-m-d H:i:s'),
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT STATUS
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        // The appointment should not be moved to the incompatible staff member.
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'staff_id' => $originalStaff->id,
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
+            'end_datetime' => $appointmentDate
+                ->copy()
+                ->addMinutes(45)
+                ->format('Y-m-d H:i:s'),
+        ]);
+    }
 }
