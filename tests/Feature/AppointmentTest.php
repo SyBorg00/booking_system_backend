@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\Service;
 use App\Models\Staff;
 use App\Models\StaffHour;
+use App\Models\AppointmentService;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -1313,6 +1314,129 @@ class AppointmentTest extends TestCase
         $this->assertDatabaseHas('appointments', [
             'id' => $appointment->id,
             'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    //This is to test that a user cannot reschedule an existing appointment to a time slot that conflicts with another appointment for the same staff member
+    public function test_cannot_reschedule_appointment_to_conflicting_slot(): void
+    {
+        /*
+        |---------------------------------------------
+        | ARRANGE TABLE
+        |---------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        // First appointment: 09:00 - 09:45
+        $firstAppointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $firstAppointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        // Second appointment: 10:00 - 10:45
+        $secondAppointmentStart = $appointmentDate
+            ->copy()
+            ->setTime(10, 0);
+
+        $secondAppointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $secondAppointmentStart,
+            'end_datetime' => $secondAppointmentStart->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $secondAppointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |---------------------------------------------
+        | EXECUTE
+        |---------------------------------------------
+        */
+        // Try to move the second appointment into the first appointment's time.
+        $conflictingStart = $appointmentDate
+            ->copy()
+            ->setTime(9, 15);
+
+        $response = $this->patchJson(
+            "/api/appointments/{$secondAppointment->id}/reschedule",
+            [
+                'start_datetime' => $conflictingStart->format('Y-m-d H:i:s'),
+            ]
+        );
+
+        /*
+        |---------------------------------------------
+        | ASSERT STATUS
+        |---------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJson(['message' => 'The selected time conflicts with another appointment.',]);
+
+        // The second appointment should remain at its original time.
+        $this->assertDatabaseHas('appointments', [
+            'id' => $secondAppointment->id,
+            'start_datetime' => $secondAppointmentStart->format('Y-m-d H:i:s'),
+            'end_datetime' => $secondAppointmentStart
+                ->copy()
+                ->addMinutes(45)
+                ->format('Y-m-d H:i:s'),
         ]);
     }
 }
