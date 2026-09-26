@@ -1915,4 +1915,114 @@ class AppointmentTest extends TestCase
             'buffer_minutes' => 15,
         ]);
     }
+
+    // This is to test that a user cannot reschedule an existing appointment if they belong to a different business than the appointment's business.
+    public function test_cannot_reschedule_appointment_from_another_business(): void
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | ARRANGE TABLE
+        |--------------------------------------------------------------------------
+        */
+        $business = Business::factory()->create();
+        $otherBusiness = Business::factory()->create();
+
+        $businessAdmin = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $otherBusinessAdmin = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        // Associate each admin with their own business.
+        $businessAdmin->businesses()->attach($business->id);
+        $otherBusinessAdmin->businesses()->attach($otherBusiness->id);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        // Authenticate as an admin belonging to another business.
+        $this->actingAs($otherBusinessAdmin, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | EXECUTE
+        |--------------------------------------------------------------------------
+        */
+
+        $newStart = $appointmentDate
+            ->copy()
+            ->setTime(10, 0);
+
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'start_datetime' => $newStart->format('Y-m-d H:i:s'),
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT STATUS
+        |--------------------------------------------------------------------------
+        */
+
+        $response->assertStatus(403);
+
+        // Verify the appointment was not modified.
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
+            'end_datetime' => $appointmentDate
+                ->copy()
+                ->addMinutes(45)
+                ->format('Y-m-d H:i:s'),
+        ]);
+    }
 }
