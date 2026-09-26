@@ -2529,7 +2529,8 @@ class AppointmentTest extends TestCase
         ]);
     }
 
-    // This is to test that a user can reschedule an existing appointment that has multiple services attached to it (and ensure the service snapshots are preserved).
+    // This is to test that a user can reschedule an existing appointment that has multiple services attached to it 
+    // (and ensure the service snapshots are preserved).
     public function test_can_reschedule_multi_service_appointment()
     {
         /*
@@ -2670,5 +2671,114 @@ class AppointmentTest extends TestCase
             'duration_minutes' => 60,
             'buffer_minutes' => 10,
         ]);
+    }
+
+    // This is to test that a user can reschedule an existing appointment and the appointment status remains unchanged.
+    public function test_reschedule_preserves_appointment_status()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | ARRANGE TABLE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        $rescheduleDate = $appointmentDate
+            ->copy()
+            ->setTime(11, 0);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '08:00',
+            'end_time' => '17:00',
+            'is_off' => false,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'confirmed',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | EXECUTE
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'start_datetime' => $rescheduleDate->toDateTimeString(),
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT STATUS
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200)
+            ->assertJson([
+                'message' => 'Appointment rescheduled successfully.',
+                'data' => [
+                    'status' => 'confirmed',
+                ],
+            ]);
+
+        $appointment->refresh();
+
+        $this->assertEquals('confirmed', $appointment->status);
+
+        $this->assertEquals(
+            $rescheduleDate->toDateTimeString(),
+            $appointment->start_datetime->toDateTimeString()
+        );
+
+        $this->assertEquals(
+            $rescheduleDate
+                ->copy()
+                ->addMinutes(45)
+                ->toDateTimeString(),
+            $appointment->end_datetime->toDateTimeString()
+        );
     }
 }
