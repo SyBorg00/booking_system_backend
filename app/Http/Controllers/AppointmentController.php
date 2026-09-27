@@ -388,7 +388,16 @@ class AppointmentController extends Controller
         Appointment $appointment,
         AvailabilityService $availabilityService
     ) {
-
+        /* 
+        |-------------------------------------------------------------------------- 
+        | Only pending and confirmed appointments can be rescheduled 
+        |-------------------------------------------------------------------------- 
+        */
+        if (!in_array($appointment->status, ['pending', 'confirmed'])) {
+            return response()->json([
+                'message' => 'Only pending and confirmed appointments can be rescheduled.',
+            ], 422);
+        }
         /*
         |--------------------------------------------------------------------------
         | Authorization check to ensure the user has permission to reschedule an appointment (put here as early as possible to avoid unnecessary processing)
