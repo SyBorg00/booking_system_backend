@@ -23,7 +23,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |---------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |---------------------------------------------
         */
 
@@ -71,7 +71,7 @@ class AppointmentTest extends TestCase
             ->setTime(9, 0);
         /*
         |---------------------------------------------
-        | EXECUTE
+        | TEST
         |---------------------------------------------
         */
         $response = $this->postJson('/api/appointments', [
@@ -89,7 +89,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |---------------------------------------------
         */
         $response->assertStatus(201);
@@ -122,7 +122,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |---------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |---------------------------------------------
         */
         $business = Business::factory()->create();
@@ -158,7 +158,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | EXECUTE
+        | TEST
         |---------------------------------------------
         */
         $response = $this->postJson('/api/appointments', [
@@ -189,7 +189,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |---------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |---------------------------------------------
         */
         $business = Business::factory()->create();
@@ -236,7 +236,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | EXECUTE
+        | TEST
         |---------------------------------------------
         */
         $response = $this->postJson('/api/appointments', [
@@ -254,7 +254,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |---------------------------------------------
         */
         $response->assertStatus(422);
@@ -273,7 +273,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |---------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |---------------------------------------------
         */
         $business = Business::factory()->create();
@@ -320,7 +320,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | EXECUTE
+        | TEST
         |---------------------------------------------
         */
         $response = $this->postJson('/api/appointments', [
@@ -336,7 +336,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |---------------------------------------------
         */
         $response->assertStatus(422);
@@ -351,7 +351,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |---------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |---------------------------------------------
         */
         $business = Business::factory()->create();
@@ -407,7 +407,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | EXECUTE
+        | TEST
         |---------------------------------------------
         |   attempt to create another appointment during the same slot
         */
@@ -428,7 +428,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |---------------------------------------------
         */
         $secondResponse->assertStatus(422);
@@ -443,7 +443,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |---------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |---------------------------------------------
         */
         $business = Business::factory()->create();
@@ -518,7 +518,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | EXECUTE
+        | TEST
         |---------------------------------------------
         |  Now attempt to create another appointment
         |  in the same time slot
@@ -536,7 +536,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |---------------------------------------------
         */
         $secondResponse->assertStatus(201);
@@ -550,7 +550,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |---------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |---------------------------------------------
         */
         $business = Business::factory()->create();
@@ -611,7 +611,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | EXECUTE
+        | TEST
         |---------------------------------------------
         | confirm appointment
         */
@@ -625,7 +625,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |---------------------------------------------
         */
         $response->assertStatus(200);
@@ -650,7 +650,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |---------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |---------------------------------------------
         */
         $business = Business::factory()->create();
@@ -721,7 +721,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | EXECUTE
+        | TEST
         |---------------------------------------------
         | complete the confirmed appointment
         */
@@ -734,7 +734,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |---------------------------------------------
         */
         $response->assertStatus(200);
@@ -759,7 +759,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |---------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |---------------------------------------------
         */
         $business = Business::factory()->create();
@@ -830,7 +830,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | EXECUTE
+        | TEST
         |---------------------------------------------
         */
 
@@ -844,7 +844,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |---------------------------------------------
         */
         $response->assertStatus(200);
@@ -869,7 +869,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |---------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |---------------------------------------------
         */
         $business = Business::factory()->create();
@@ -940,7 +940,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | EXECUTE
+        | TEST
         |---------------------------------------------
         */
 
@@ -954,7 +954,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |---------------------------------------------
         */
         $response->assertStatus(200);
@@ -979,7 +979,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |---------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |---------------------------------------------
         */
         $business = Business::factory()->create();
@@ -1060,7 +1060,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | EXECUTE
+        | TEST
         |---------------------------------------------
         */
 
@@ -1074,7 +1074,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |---------------------------------------------
         */
         $response->assertStatus(422);
@@ -1092,7 +1092,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |---------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |---------------------------------------------
         */
         $business = Business::factory()->create();
@@ -1173,7 +1173,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | EXECUTE
+        | TEST
         |---------------------------------------------
         */
         //reschedule to 10:00
@@ -1186,7 +1186,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |---------------------------------------------
         */
         $response->assertStatus(200);
@@ -1223,7 +1223,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |---------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |---------------------------------------------
         */
         $business = Business::factory()->create();
@@ -1288,7 +1288,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | EXECUTE
+        | TEST
         |---------------------------------------------
         */
         // attempt to reschedule into the past
@@ -1301,7 +1301,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |---------------------------------------------
         */
         $response->assertStatus(422);
@@ -1322,7 +1322,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |---------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |---------------------------------------------
         */
         $user = User::factory()->create([
@@ -1405,7 +1405,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | EXECUTE
+        | TEST
         |---------------------------------------------
         */
         // Try to move the second appointment into the first appointment's time.
@@ -1422,7 +1422,7 @@ class AppointmentTest extends TestCase
 
         /*
         |---------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |---------------------------------------------
         */
         $response->assertStatus(422);
@@ -1446,7 +1446,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |--------------------------------------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |--------------------------------------------------------------------------
         */
         $user = User::factory()->create([
@@ -1523,7 +1523,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | EXECUTE
+        | TEST
         |--------------------------------------------------------------------------
         */
         $newStart = $appointmentDate
@@ -1540,7 +1540,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |--------------------------------------------------------------------------
         */
         $response->assertStatus(200);
@@ -1577,7 +1577,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |--------------------------------------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |--------------------------------------------------------------------------
         */
         $user = User::factory()->create([
@@ -1650,7 +1650,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | EXECUTE
+        | TEST
         |--------------------------------------------------------------------------
         */
         $newStart = $appointmentDate
@@ -1667,7 +1667,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |--------------------------------------------------------------------------
         */
         $response->assertStatus(422);
@@ -1689,7 +1689,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |--------------------------------------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |--------------------------------------------------------------------------
         */
         $user = User::factory()->create([
@@ -1766,7 +1766,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | EXECUTE
+        | TEST
         |--------------------------------------------------------------------------
         */
         $newStart = $appointmentDate
@@ -1783,7 +1783,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |--------------------------------------------------------------------------
         */
         $response->assertStatus(422);
@@ -1806,7 +1806,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |--------------------------------------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |--------------------------------------------------------------------------
         */
         $user = User::factory()->create([
@@ -1865,7 +1865,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | EXECUTE
+        | TEST
         |--------------------------------------------------------------------------
         */
 
@@ -1883,7 +1883,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |--------------------------------------------------------------------------
         */
         $response->assertStatus(200);
@@ -1921,7 +1921,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |--------------------------------------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |--------------------------------------------------------------------------
         */
         $business = Business::factory()->create();
@@ -1990,7 +1990,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | EXECUTE
+        | TEST
         |--------------------------------------------------------------------------
         */
 
@@ -2007,7 +2007,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |--------------------------------------------------------------------------
         */
 
@@ -2031,7 +2031,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |--------------------------------------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |--------------------------------------------------------------------------
         */
         $business = Business::factory()->create();
@@ -2104,7 +2104,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | EXECUTE
+        | TEST
         |--------------------------------------------------------------------------
         */
         $newStart = $appointmentDate
@@ -2120,7 +2120,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |--------------------------------------------------------------------------
         */
         $response->assertStatus(403);
@@ -2143,7 +2143,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |--------------------------------------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |--------------------------------------------------------------------------
         */
         $business = Business::factory()->create();
@@ -2196,7 +2196,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | EXECUTE
+        | TEST
         |--------------------------------------------------------------------------
         */
 
@@ -2214,7 +2214,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |--------------------------------------------------------------------------
         */
         $response->assertStatus(401);
@@ -2237,7 +2237,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |--------------------------------------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |--------------------------------------------------------------------------
         */
         $user = User::factory()->create([
@@ -2296,7 +2296,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | EXECUTE
+        | TEST
         |--------------------------------------------------------------------------
         */
         $response = $this->patchJson(
@@ -2306,7 +2306,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |--------------------------------------------------------------------------
         */
         $response->assertStatus(422);
@@ -2332,7 +2332,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |--------------------------------------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |--------------------------------------------------------------------------
         */
         $user = User::factory()->create([
@@ -2391,7 +2391,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | EXECUTE
+        | TEST
         |--------------------------------------------------------------------------
         */
         $newStart = $appointmentDate
@@ -2411,7 +2411,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |--------------------------------------------------------------------------
         */
         $response->assertStatus(422);
@@ -2437,7 +2437,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |--------------------------------------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |--------------------------------------------------------------------------
         */
         $user = User::factory()->create([
@@ -2496,7 +2496,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | EXECUTE
+        | TEST
         |--------------------------------------------------------------------------
         */
         $response = $this->patchJson(
@@ -2508,7 +2508,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |--------------------------------------------------------------------------
         */
         $response->assertStatus(422);
@@ -2535,7 +2535,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |--------------------------------------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |--------------------------------------------------------------------------
         */
         $user = User::factory()->create([
@@ -2620,7 +2620,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | EXECUTE
+        | TEST
         |--------------------------------------------------------------------------
         */
         $response = $this->patchJson(
@@ -2632,7 +2632,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |--------------------------------------------------------------------------
         */
         $response->assertStatus(200)
@@ -2678,7 +2678,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |--------------------------------------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |--------------------------------------------------------------------------
         */
         $user = User::factory()->create([
@@ -2741,7 +2741,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | EXECUTE
+        | TEST
         |--------------------------------------------------------------------------
         */
         $response = $this->patchJson(
@@ -2753,7 +2753,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |--------------------------------------------------------------------------
         */
         $response->assertStatus(200)
@@ -2787,7 +2787,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |--------------------------------------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |--------------------------------------------------------------------------
         */
         $user = User::factory()->create([
@@ -2850,7 +2850,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | EXECUTE
+        | TEST
         |--------------------------------------------------------------------------
         */
         $response = $this->patchJson(
@@ -2862,7 +2862,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |--------------------------------------------------------------------------
         */
         $response->assertStatus(422)
@@ -2894,7 +2894,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |--------------------------------------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |--------------------------------------------------------------------------
         */
         $user = User::factory()->create([
@@ -2957,7 +2957,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | EXECUTE
+        | TEST
         |--------------------------------------------------------------------------
         */
         $response = $this->patchJson(
@@ -2969,7 +2969,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |--------------------------------------------------------------------------
         */
         $response->assertStatus(422)
@@ -3001,7 +3001,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |--------------------------------------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |--------------------------------------------------------------------------
         */
         $user = User::factory()->create([
@@ -3064,7 +3064,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | EXECUTE
+        | TEST
         |--------------------------------------------------------------------------
         */
         $response = $this->patchJson(
@@ -3076,7 +3076,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |--------------------------------------------------------------------------
         */
         $response->assertStatus(422)
@@ -3105,7 +3105,7 @@ class AppointmentTest extends TestCase
 
     /*
     |--------------------------------------------------------------------------
-    | APPOINTMENT SHOW() API TEST
+    | APPOINTMENT INDEX() API TEST
     |--------------------------------------------------------------------------
     */
     // This is to test that the appointment index endpoint only returns appointments for the requested business.
@@ -3113,7 +3113,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |--------------------------------------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |--------------------------------------------------------------------------
         */
         $user = User::factory()->create([
@@ -3202,7 +3202,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | EXECUTE
+        | TEST
         |--------------------------------------------------------------------------
         */
         $response = $this->getJson(
@@ -3211,7 +3211,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |--------------------------------------------------------------------------
         */
         $response->assertStatus(200);
@@ -3233,7 +3233,7 @@ class AppointmentTest extends TestCase
     {
         /*
         |--------------------------------------------------------------------------
-        | ARRANGE TABLE
+        | CREATE
         |--------------------------------------------------------------------------
         */
         $user = User::factory()->create([
@@ -3311,7 +3311,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | EXECUTE
+        | TEST
         |--------------------------------------------------------------------------
         */
         $response = $this->getJson(
@@ -3320,7 +3320,7 @@ class AppointmentTest extends TestCase
 
         /*
         |--------------------------------------------------------------------------
-        | ASSERT STATUS
+        | ASSERT
         |--------------------------------------------------------------------------
         */
         $response->assertStatus(200);
@@ -3335,6 +3335,335 @@ class AppointmentTest extends TestCase
         $response->assertJsonPath(
             'data.0.staff_id',
             $staff->id
+        );
+
+        $response->assertJsonMissing([
+            'id' => $otherAppointment->id,
+        ]);
+    }
+
+    // This is to test that the appointment index endpoint can filter appointments by customer_id.
+    public function test_appointment_index_can_filter_by_customer()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $otherCustomer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        $otherAppointmentDate = $appointmentDate
+            ->copy()
+            ->setTime(11, 0);
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        $otherAppointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $otherCustomer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $otherAppointmentDate,
+            'end_datetime' => $otherAppointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $otherAppointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments?business_id={$business->id}&customer_id={$customer->id}"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJsonCount(1, 'data');
+
+        $response->assertJsonPath(
+            'data.0.id',
+            $appointment->id
+        );
+
+        $response->assertJsonPath(
+            'data.0.customer_id',
+            $customer->id
+        );
+
+        $response->assertJsonMissing([
+            'id' => $otherAppointment->id,
+        ]);
+    }
+
+    // This is to test that the appointment index endpoint can filter appointments by status.
+    public function test_appointment_index_can_filter_by_status()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        $otherAppointmentDate = $appointmentDate
+            ->copy()
+            ->setTime(11, 0);
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'confirmed',
+        ]);
+
+        $otherAppointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $otherAppointmentDate,
+            'end_datetime' => $otherAppointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $otherAppointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments?business_id={$business->id}&status=confirmed"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJsonCount(1, 'data');
+
+        $response->assertJsonPath(
+            'data.0.id',
+            $appointment->id
+        );
+
+        $response->assertJsonPath(
+            'data.0.status',
+            'confirmed'
+        );
+
+        $response->assertJsonMissing([
+            'id' => $otherAppointment->id,
+        ]);
+    }
+
+    // This is to test that the appointment index endpoint can filter appointments by date.
+    public function test_appointment_index_can_filter_by_date()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        // Target date
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        // Different date
+        $otherAppointmentDate = $appointmentDate
+            ->copy()
+            ->addDay()
+            ->setTime(9, 0);
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        $otherAppointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $otherAppointmentDate,
+            'end_datetime' => $otherAppointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $otherAppointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments?business_id={$business->id}&date={$appointmentDate->toDateString()}"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJsonCount(1, 'data');
+
+        $response->assertJsonPath(
+            'data.0.id',
+            $appointment->id
         );
 
         $response->assertJsonMissing([
