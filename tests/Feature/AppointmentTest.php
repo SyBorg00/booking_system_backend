@@ -3227,4 +3227,118 @@ class AppointmentTest extends TestCase
             'id' => $otherAppointment->id,
         ]);
     }
+
+    // This is to test that the appointment index endpoint can filter appointments by staff_id.
+    public function test_appointment_index_can_filter_by_staff()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | ARRANGE TABLE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $otherStaff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+        $otherStaff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        $otherAppointmentDate = $appointmentDate
+            ->copy()
+            ->setTime(11, 0);
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        $otherAppointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $otherStaff->id,
+            'start_datetime' => $otherAppointmentDate,
+            'end_datetime' => $otherAppointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $otherAppointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | EXECUTE
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments?business_id={$business->id}&staff_id={$staff->id}"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT STATUS
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJsonCount(1, 'data');
+
+        $response->assertJsonPath(
+            'data.0.id',
+            $appointment->id
+        );
+
+        $response->assertJsonPath(
+            'data.0.staff_id',
+            $staff->id
+        );
+
+        $response->assertJsonMissing([
+            'id' => $otherAppointment->id,
+        ]);
+    }
 }
