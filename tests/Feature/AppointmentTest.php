@@ -3744,4 +3744,31 @@ class AppointmentTest extends TestCase
             'date',
         ]);
     }
+
+    // This is to test that an unauthenticated user cannot view appointments.
+    public function test_unauthenticated_user_cannot_view_appointments()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $business = Business::factory()->create();
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments?business_id={$business->id}"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(401);
+    }
 }
