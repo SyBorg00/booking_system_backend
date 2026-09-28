@@ -3670,4 +3670,78 @@ class AppointmentTest extends TestCase
             'id' => $otherAppointment->id,
         ]);
     }
+
+    // This is to test that the appointment index endpoint rejects invalid status values.
+    public function test_appointment_index_rejects_invalid_status()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments?business_id={$business->id}&status=scheduled"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors([
+            'status',
+        ]);
+    }
+
+    // This is to test that the appointment index endpoint rejects invalid date formats.
+    public function test_appointment_index_rejects_invalid_date_format()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments?business_id={$business->id}&date=09/10/2026"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors([
+            'date',
+        ]);
+    }
 }
