@@ -3771,4 +3771,150 @@ class AppointmentTest extends TestCase
         */
         $response->assertStatus(401);
     }
+
+    // This is to test that a user cannot view appointments from another business.
+    public function test_user_cannot_view_appointments_from_another_business()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $business = Business::factory()->create();
+        $otherBusiness = Business::factory()->create();
+
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        // Give the user access to the other business only
+        $user->businesses()->attach($otherBusiness->id);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments?business_id={$business->id}"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(403);
+    }
+
+    // This is to test that a staff user cannot view appointments from another business.
+    public function test_staff_user_cannot_view_appointments_from_another_business()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $business = Business::factory()->create();
+        $otherBusiness = Business::factory()->create();
+
+        //now, test with a staff member
+        $staffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $otherBusiness->id,
+        ]);
+
+        $this->actingAs($staffUser, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments?business_id={$business->id}"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(403);
+    }
+
+    // This is to test that the appointment index endpoint requires a business_id parameter.
+    public function test_appointment_index_requires_business_id()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson('/api/appointments');
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors([
+            'business_id',
+        ]);
+    }
+
+    // This is to test that the appointment index endpoint rejects a nonexistent business_id parameter.
+    public function test_appointment_index_rejects_nonexistent_business_id()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            '/api/appointments?business_id=999999'
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors([
+            'business_id',
+        ]);
+    }
 }
