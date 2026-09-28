@@ -18,6 +18,12 @@ class AppointmentTest extends TestCase
 {
     use RefreshDatabase;
 
+    /*
+    |--------------------------------------------------------------------------
+    | APPOINTMENT STORE() API TESTS
+    |--------------------------------------------------------------------------
+    */
+
     //This is to test a normal appointment creation flow
     public function test_user_can_create_appointment(): void
     {
@@ -1217,6 +1223,12 @@ class AppointmentTest extends TestCase
             'buffer_minutes' => 15,
         ]);
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | APPOINTMENT RESCHEDULE() API TESTS
+    |--------------------------------------------------------------------------
+    */
 
     //This is to test that a user cannot reschedule an existing appointment to a past time slot
     public function test_cannot_reschedule_appointment_to_past(): void
@@ -3916,5 +3928,560 @@ class AppointmentTest extends TestCase
         $response->assertJsonValidationErrors([
             'business_id',
         ]);
+    }
+
+    // This is to test that the appointment index endpoint rejects a nonexistent staff_id parameter.
+    public function test_appointment_index_rejects_nonexistent_staff_id()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments?business_id={$business->id}&staff_id=999999"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors([
+            'staff_id',
+        ]);
+    }
+
+    // This is to test that the appointment index endpoint rejects a nonexistent customer_id parameter.
+    public function test_appointment_index_rejects_nonexistent_customer_id()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments?business_id={$business->id}&customer_id=999999"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors([
+            'customer_id',
+        ]);
+    }
+
+    // This is to test that the appointment index endpoint rejects a non-integer staff_id parameter.
+    public function test_appointment_index_rejects_non_integer_staff_id()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments?business_id={$business->id}&staff_id=abc"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors([
+            'staff_id',
+        ]);
+    }
+
+    // This is to test that the appointment index endpoint rejects a non-integer customer_id parameter.
+    public function test_appointment_index_rejects_non_integer_customer_id()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments?business_id={$business->id}&customer_id=abc"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors([
+            'customer_id',
+        ]);
+    }
+
+    // This is to test that the appointment index endpoint can combine multiple filters.
+    public function test_appointment_index_can_combine_multiple_filters()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $otherCustomer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $targetDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(10, 0, 0);
+
+        $matchingAppointment = Appointment::factory()->create([
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => $targetDate,
+            'end_datetime' => $targetDate->copy()->addMinutes(30),
+            'status' => 'pending',
+        ]);
+
+        // Same business and staff, but different customer
+        $differentCustomerAppointment = Appointment::factory()->create([
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $otherCustomer->id,
+            'start_datetime' => $targetDate->copy()->addHours(2),
+            'end_datetime' => $targetDate->copy()->addHours(2)->addMinutes(30),
+            'status' => 'pending',
+        ]);
+
+        // Same business/staff/customer, but different status
+        $differentStatusAppointment = Appointment::factory()->create([
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => $targetDate->copy()->addHours(4),
+            'end_datetime' => $targetDate->copy()->addHours(4)->addMinutes(30),
+            'status' => 'confirmed',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments"
+                . "?business_id={$business->id}"
+                . "&staff_id={$staff->id}"
+                . "&customer_id={$customer->id}"
+                . "&status=pending"
+                . "&date={$targetDate->format('Y-m-d')}"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJsonCount(1, 'data');
+
+        // assert that the returned appointment is the matching one, and not the other two
+        $response->assertJsonPath(
+            'data.0.id',
+            $matchingAppointment->id
+        );
+
+        $response->assertJsonMissing([
+            'id' => $differentCustomerAppointment->id,
+        ]);
+
+        $response->assertJsonMissing([
+            'id' => $differentStatusAppointment->id,
+        ]);
+    }
+
+    // This is to test that the appointment index endpoint returns empty data when a staff member has no matching appointments.
+    public function test_appointment_index_returns_empty_data_when_staff_has_no_matching_appointments()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $otherStaff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(10, 0, 0);
+
+        // Appointment belongs to another staff member
+        Appointment::factory()->create([
+            'business_id' => $business->id,
+            'staff_id' => $otherStaff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(30),
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments"
+                . "?business_id={$business->id}"
+                . "&staff_id={$staff->id}"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJsonCount(0, 'data');
+    }
+
+    // This is to test that the appointment index endpoint returns empty data when a customer has no matching appointments.
+    public function test_appointment_index_returns_empty_data_when_customer_has_no_matching_appointments()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $otherCustomer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(10, 0, 0);
+
+        // Appointment belongs to another customer
+        Appointment::factory()->create([
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $otherCustomer->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(30),
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments"
+                . "?business_id={$business->id}"
+                . "&customer_id={$customer->id}"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJsonCount(0, 'data');
+    }
+
+    // This is to test that the appointment index endpoint returns empty data when the date input has no matching appointments.
+    public function test_appointment_index_returns_empty_data_when_date_has_no_matching_appointments()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(10, 0, 0);
+
+        $requestedDate = $appointmentDate
+            ->copy()
+            ->addDay();
+
+        Appointment::factory()->create([
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(30),
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments"
+                . "?business_id={$business->id}"
+                . "&date={$requestedDate->format('Y-m-d')}"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJsonCount(0, 'data');
+    }
+
+    // This is to test that the appointment index endpoint returns empty data when the status has no matching appointments.
+    public function test_appointment_index_returns_empty_data_when_status_has_no_matching_appointments()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(10, 0, 0);
+
+        // Only a pending appointment exists
+        Appointment::factory()->create([
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(30),
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments"
+                . "?business_id={$business->id}"
+                . "&status=completed"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJsonCount(0, 'data');
+    }
+
+    // This is to test that the appointment index endpoint returns empty data when the combined filters has no matching appointments.
+    public function test_appointment_index_returns_empty_data_when_combined_filters_match_nothing()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(10, 0, 0);
+
+        Appointment::factory()->create([
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(30),
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments"
+                . "?business_id={$business->id}"
+                . "&staff_id={$staff->id}"
+                . "&customer_id={$customer->id}"
+                . "&status=confirmed"
+                . "&date={$appointmentDate->format('Y-m-d')}"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJsonCount(0, 'data');
     }
 }
