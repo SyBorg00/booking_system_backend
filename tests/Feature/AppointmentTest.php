@@ -4993,7 +4993,11 @@ class AppointmentTest extends TestCase
     // This is to test that a user can update the status of a "pending" appointment to "confirmed"
     public function test_user_can_confirm_pending_appointment()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -5023,7 +5027,11 @@ class AppointmentTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->patchJson(
             "/api/appointments/{$appointment->id}",
             [
@@ -5031,7 +5039,11 @@ class AppointmentTest extends TestCase
             ]
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $response->assertJsonPath(
@@ -5048,7 +5060,11 @@ class AppointmentTest extends TestCase
     // This is to test that a user can update a "confirmed" appointment to "completed"
     public function test_user_can_complete_confirmed_appointment()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -5078,7 +5094,11 @@ class AppointmentTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->patchJson(
             "/api/appointments/{$appointment->id}",
             [
@@ -5086,7 +5106,11 @@ class AppointmentTest extends TestCase
             ]
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $response->assertJsonPath(
@@ -5103,7 +5127,11 @@ class AppointmentTest extends TestCase
     // This is to test that a user can update a "confirmed" appointment to "cancelled"
     public function test_user_can_cancel_confirmed_appointment()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -5133,7 +5161,11 @@ class AppointmentTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->patchJson(
             "/api/appointments/{$appointment->id}",
             [
@@ -5141,7 +5173,11 @@ class AppointmentTest extends TestCase
             ]
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $response->assertJsonPath(
@@ -5158,7 +5194,11 @@ class AppointmentTest extends TestCase
     // This is to test that a user can update a "confirmed" appointment as "no show"
     public function test_user_can_mark_confirmed_appointment_as_no_show()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -5188,7 +5228,11 @@ class AppointmentTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->patchJson(
             "/api/appointments/{$appointment->id}",
             [
@@ -5196,7 +5240,11 @@ class AppointmentTest extends TestCase
             ]
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $response->assertJsonPath(
@@ -5213,7 +5261,11 @@ class AppointmentTest extends TestCase
     // This is to test that the update rejects invalid status transitions
     public function test_appointment_update_rejects_invalid_status_transition()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -5243,7 +5295,11 @@ class AppointmentTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->patchJson(
             "/api/appointments/{$appointment->id}",
             [
@@ -5251,7 +5307,11 @@ class AppointmentTest extends TestCase
             ]
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(422);
 
         // Being specific here 
@@ -5269,7 +5329,11 @@ class AppointmentTest extends TestCase
     // This is to test that an update rejects invalid status value
     public function test_appointment_update_rejects_invalid_status_value()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -5299,7 +5363,11 @@ class AppointmentTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->patchJson(
             "/api/appointments/{$appointment->id}",
             [
@@ -5307,7 +5375,11 @@ class AppointmentTest extends TestCase
             ]
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(422);
 
         $response->assertJsonValidationErrors([
@@ -5323,7 +5395,11 @@ class AppointmentTest extends TestCase
     // This is to test that a user cannot an appointment from another business
     public function test_user_cannot_update_appointment_from_another_business()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'admin',
         ]);
@@ -5356,7 +5432,11 @@ class AppointmentTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->patchJson(
             "/api/appointments/{$appointment->id}",
             [
@@ -5364,7 +5444,11 @@ class AppointmentTest extends TestCase
             ]
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(403);
 
         $this->assertDatabaseHas('appointments', [
@@ -5376,7 +5460,11 @@ class AppointmentTest extends TestCase
     // This is to test that unauthenticated users cannot access the update() method
     public function test_unauthenticated_user_cannot_update_appointment()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $business = Business::factory()->create();
 
         $staff = Staff::factory()->create([
@@ -5400,7 +5488,11 @@ class AppointmentTest extends TestCase
             'status' => 'pending',
         ]);
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->patchJson(
             "/api/appointments/{$appointment->id}",
             [
@@ -5408,7 +5500,11 @@ class AppointmentTest extends TestCase
             ]
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(401);
 
         $this->assertDatabaseHas('appointments', [
@@ -5420,7 +5516,11 @@ class AppointmentTest extends TestCase
     // This is to test that a non-existing appointment returns a 404 error
     public function test_updating_nonexistent_appointment_returns_not_found()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -5429,7 +5529,11 @@ class AppointmentTest extends TestCase
 
         $nonexistentAppointmentId = 999999;
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->patchJson(
             "/api/appointments/{$nonexistentAppointmentId}",
             [
@@ -5437,7 +5541,481 @@ class AppointmentTest extends TestCase
             ]
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(404);
+    }
+
+    // This is to test that an empty request will not update any data from the selected appointment
+    public function test_appointment_update_rejects_empty_request()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(10, 0, 0);
+
+        $appointment = Appointment::factory()->create([
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(30),
+            'status' => 'pending',
+            'notes' => 'Original notes',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}",
+            []
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJsonPath(
+            'data.id',
+            $appointment->id
+        );
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'status' => 'pending',
+            'notes' => 'Original notes',
+        ]);
+    }
+
+    // This is to test that a note can be optionally updated to NULL
+    public function test_appointment_notes_can_be_cleared()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(10, 0, 0);
+
+        $appointment = Appointment::factory()->create([
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(30),
+            'status' => 'pending',
+            'notes' => 'Customer requested a specific treatment.',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}",
+            [
+                'notes' => null,
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'notes' => null,
+        ]);
+    }
+
+    // This is to test that an invalid note types is rejected
+    public function test_appointment_update_rejects_invalid_notes_type()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(10, 0, 0);
+
+        $appointment = Appointment::factory()->create([
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(30),
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}",
+            [
+                'notes' => ['invalid'],
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors([
+            'notes',
+        ]);
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'status' => 'pending',
+        ]);
+    }
+
+    // This is to test that updating ONLY the notes preserves the current status of the selected appointment
+    public function test_notes_update_preserves_appointment_status()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(10, 0, 0);
+
+        $appointment = Appointment::factory()->create([
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(30),
+            'status' => 'confirmed',
+            'notes' => 'Original notes',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}",
+            [
+                'notes' => 'Updated notes',
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'status' => 'confirmed',
+            'notes' => 'Updated notes',
+        ]);
+    }
+
+    // This is to test that updating ONLY the status preserves the appointment details (e.g: ownership)
+    public function test_status_update_preserves_appointment_details()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(10, 0, 0);
+
+        $endDate = $appointmentDate->copy()->addMinutes(30);
+
+        $appointment = Appointment::factory()->create([
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $endDate,
+            'status' => 'pending',
+            'notes' => 'Keep these notes.',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}",
+            [
+                'status' => 'confirmed',
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
+            'end_datetime' => $endDate->format('Y-m-d H:i:s'),
+            'status' => 'confirmed',
+            'notes' => 'Keep these notes.',
+        ]);
+    }
+
+    // This is to test that updating ONLY the status preserves the appointment notes
+    public function test_status_update_preserves_appointment_notes()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(10, 0, 0);
+
+        $appointment = Appointment::factory()->create([
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(30),
+            'status' => 'pending',
+            'notes' => 'Important customer notes.',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}",
+            [
+                'status' => 'confirmed',
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJsonPath(
+            'data.notes',
+            'Important customer notes.'
+        );
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'status' => 'confirmed',
+            'notes' => 'Important customer notes.',
+        ]);
+    }
+
+    // This is to test that a staff user can update an appointment in their own business
+    public function test_staff_user_can_update_appointment_in_their_business()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $staffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(10, 0, 0);
+
+        $appointment = Appointment::factory()->create([
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(30),
+            'status' => 'pending',
+            'notes' => 'Original notes',
+        ]);
+
+        $this->actingAs($staffUser, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}",
+            [
+                'notes' => 'Updated by staff.',
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJsonPath(
+            'data.notes',
+            'Updated by staff.'
+        );
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'notes' => 'Updated by staff.',
+            'status' => 'pending',
+        ]);
     }
 }
