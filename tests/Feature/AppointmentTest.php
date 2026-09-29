@@ -19,9 +19,9 @@ class AppointmentTest extends TestCase
     use RefreshDatabase;
 
     /*
-    |--------------------------------------------------------------------------
+    |==========================================================================
     | APPOINTMENT STORE() API TESTS
-    |--------------------------------------------------------------------------
+    |==========================================================================
     */
 
     //This is to test a normal appointment creation flow
@@ -180,7 +180,11 @@ class AppointmentTest extends TestCase
             'notes' => 'Past appointment test',
         ]);
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(422);
 
         $response->assertJsonValidationErrors([
@@ -1225,9 +1229,9 @@ class AppointmentTest extends TestCase
     }
 
     /*
-    |--------------------------------------------------------------------------
+    |==========================================================================
     | APPOINTMENT RESCHEDULE() API TESTS
-    |--------------------------------------------------------------------------
+    |==========================================================================
     */
 
     //This is to test that a user cannot reschedule an existing appointment to a past time slot
@@ -3116,9 +3120,9 @@ class AppointmentTest extends TestCase
     }
 
     /*
-    |--------------------------------------------------------------------------
+    |==========================================================================
     | APPOINTMENT INDEX() API TEST
-    |--------------------------------------------------------------------------
+    |==========================================================================
     */
     // This is to test that the appointment index endpoint only returns appointments for the requested business.
     public function test_appointment_index_only_returns_appointments_for_requested_business()
@@ -3869,7 +3873,11 @@ class AppointmentTest extends TestCase
         | CREATE
         |--------------------------------------------------------------------------
         */
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -4483,5 +4491,426 @@ class AppointmentTest extends TestCase
         $response->assertStatus(200);
 
         $response->assertJsonCount(0, 'data');
+    }
+
+    /*
+    |==========================================================================
+    | APPOINTMENT SHOW() API TEST
+    |==========================================================================
+    */
+
+    // This is to test that a user can view a specific appointment from the respective business
+    public function test_user_can_view_appointment_from_their_business()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(10, 0, 0);
+
+        $appointment = Appointment::factory()->create([
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(30),
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments/{$appointment->id}"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJsonPath(
+            'data.id',
+            $appointment->id
+        );
+
+        $response->assertJsonPath(
+            'data.business_id',
+            $business->id
+        );
+
+        $response->assertJsonPath(
+            'data.staff_id',
+            $staff->id
+        );
+
+        $response->assertJsonPath(
+            'data.customer_id',
+            $customer->id
+        );
+    }
+
+    // This is to test that an admin cannot view a specific appointment from another business
+    public function test_admin_cannot_view_appointment_from_another_business()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $admin = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $otherBusiness = Business::factory()->create();
+
+        // Give the admin access to the first business only.
+        $admin->businesses()->attach($business->id);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $otherBusiness->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $otherBusiness->id,
+        ]);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(10, 0, 0);
+
+        $appointment = Appointment::factory()->create([
+            'business_id' => $otherBusiness->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(30),
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($admin, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments/{$appointment->id}"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(403);
+    }
+
+    // This is to test that a staff member cannot view a specific appointment from another business
+    public function test_staff_user_cannot_view_appointment_from_another_business()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $staffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $staffBusiness = Business::factory()->create();
+        $appointmentBusiness = Business::factory()->create();
+
+        Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $staffBusiness->id,
+        ]);
+
+        $appointmentStaff = Staff::factory()->create([
+            'business_id' => $appointmentBusiness->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $appointmentBusiness->id,
+        ]);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(10, 0, 0);
+
+        $appointment = Appointment::factory()->create([
+            'business_id' => $appointmentBusiness->id,
+            'staff_id' => $appointmentStaff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(30),
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($staffUser, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments/{$appointment->id}"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(403);
+    }
+
+    // This is to test that unauthenticated ysers cannot view the specific appointment
+    public function test_unauthenticated_user_cannot_view_specific_appointment()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(10, 0, 0);
+
+        $appointment = Appointment::factory()->create([
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(30),
+            'status' => 'pending',
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments/{$appointment->id}"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(401);
+    }
+
+    // This is to test that a non-existent appointment does not return any data
+    public function test_viewing_nonexistent_appointment_returns_not_found()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Use an ID that does not exist.
+        $nonexistentAppointmentId = 999999;
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments/{$nonexistentAppointmentId}"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(404);
+    }
+
+    // This is to test that the specific appointment includes the customer, staff and service id in the data
+    public function test_appointment_show_includes_customer_staff_and_services()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(10, 0, 0);
+
+        $appointment = Appointment::factory()->create([
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(30),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::factory()->create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments/{$appointment->id}"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJsonPath(
+            'data.customer.id',
+            $customer->id
+        );
+
+        $response->assertJsonPath(
+            'data.staff.id',
+            $staff->id
+        );
+
+        $response->assertJsonPath(
+            'data.appointment_services.0.service.id',
+            $service->id
+        );
+    }
+
+    // This is to test that a user cannot view an appointment from another business
+    public function test_user_cannot_view_appointment_from_another_business()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $userBusiness = Business::factory()->create();
+        $appointmentBusiness = Business::factory()->create();
+
+        // User belongs to a different business.
+        $user->businesses()->attach($userBusiness->id);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $appointmentBusiness->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $appointmentBusiness->id,
+        ]);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(10, 0, 0);
+
+        $appointment = Appointment::factory()->create([
+            'business_id' => $appointmentBusiness->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(30),
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/appointments/{$appointment->id}"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(403);
     }
 }
