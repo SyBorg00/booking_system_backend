@@ -29,7 +29,11 @@ class AvailabilityTest extends TestCase
     // when generating the availabilty list
     public function test_staff_has_available_slots_during_working_hours()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -62,7 +66,11 @@ class AvailabilityTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->getJson(
             "/api/businesses/{$business->id}/availability"
                 . "?staff_id={$staff->id}"
@@ -70,7 +78,11 @@ class AvailabilityTest extends TestCase
                 . "&date={$date->format('Y-m-d')}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $response->assertJsonStructure([
@@ -100,7 +112,11 @@ class AvailabilityTest extends TestCase
     // of the week is assigned as a day off
     public function test_staff_has_no_available_slots_when_day_is_off()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -133,7 +149,11 @@ class AvailabilityTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->getJson(
             "/api/businesses/{$business->id}/availability"
                 . "?staff_id={$staff->id}"
@@ -141,7 +161,11 @@ class AvailabilityTest extends TestCase
                 . "&date={$date->format('Y-m-d')}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $this->assertEmpty(
@@ -153,7 +177,11 @@ class AvailabilityTest extends TestCase
     // of the week does not have a stff hour record to it
     public function test_staff_has_no_available_slots_when_no_working_hours_exist()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -180,7 +208,11 @@ class AvailabilityTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->getJson(
             "/api/businesses/{$business->id}/availability"
                 . "?staff_id={$staff->id}"
@@ -188,7 +220,11 @@ class AvailabilityTest extends TestCase
                 . "&date={$date->format('Y-m-d')}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $this->assertEmpty(
@@ -200,7 +236,11 @@ class AvailabilityTest extends TestCase
     // the calculation
     public function test_availability_respects_service_duration_and_buffer()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -233,7 +273,11 @@ class AvailabilityTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->getJson(
             "/api/businesses/{$business->id}/availability"
                 . "?staff_id={$staff->id}"
@@ -241,7 +285,11 @@ class AvailabilityTest extends TestCase
                 . "&date={$date->format('Y-m-d')}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $slots = $response->json('available_slots');
@@ -281,7 +329,11 @@ class AvailabilityTest extends TestCase
     // not generate any available slots
     public function test_staff_without_service_has_no_available_slots()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -314,7 +366,11 @@ class AvailabilityTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->getJson(
             "/api/businesses/{$business->id}/availability"
                 . "?staff_id={$staff->id}"
@@ -322,7 +378,11 @@ class AvailabilityTest extends TestCase
                 . "&date={$date->format('Y-m-d')}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $this->assertEmpty(
@@ -333,7 +393,11 @@ class AvailabilityTest extends TestCase
     // This is to test that a staff w/ the specified service can generate available slots
     public function test_staff_with_assigned_service_has_available_slots()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -366,7 +430,11 @@ class AvailabilityTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->getJson(
             "/api/businesses/{$business->id}/availability"
                 . "?staff_id={$staff->id}"
@@ -374,7 +442,11 @@ class AvailabilityTest extends TestCase
                 . "&date={$date->format('Y-m-d')}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $this->assertNotEmpty(
@@ -386,7 +458,11 @@ class AvailabilityTest extends TestCase
     // each generated slots
     public function test_multi_service_availability_uses_combined_duration_and_buffer()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -428,7 +504,11 @@ class AvailabilityTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->getJson(
             "/api/businesses/{$business->id}/availability"
                 . "?staff_id={$staff->id}"
@@ -437,7 +517,11 @@ class AvailabilityTest extends TestCase
                 . "&date={$date->format('Y-m-d')}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $slots = $response->json('available_slots');
@@ -460,7 +544,11 @@ class AvailabilityTest extends TestCase
     // assigned by the specified staff member
     public function test_multi_service_availability_returns_no_slots_when_one_service_is_unassigned()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -500,7 +588,11 @@ class AvailabilityTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->getJson(
             "/api/businesses/{$business->id}/availability"
                 . "?staff_id={$staff->id}"
@@ -509,7 +601,11 @@ class AvailabilityTest extends TestCase
                 . "&date={$date->format('Y-m-d')}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $this->assertEmpty(
@@ -526,7 +622,11 @@ class AvailabilityTest extends TestCase
     // where an existing time off record overlaps to that time slot
     public function test_staff_time_off_blocks_available_slots()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -566,7 +666,11 @@ class AvailabilityTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->getJson(
             "/api/businesses/{$business->id}/availability"
                 . "?staff_id={$staff->id}"
@@ -574,7 +678,11 @@ class AvailabilityTest extends TestCase
                 . "&date={$date->format('Y-m-d')}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $slots = $response->json('available_slots');
@@ -597,7 +705,11 @@ class AvailabilityTest extends TestCase
     // hours does not affect the generated availability slots
     public function test_time_off_outside_working_hours_does_not_affect_availability()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -637,7 +749,11 @@ class AvailabilityTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->getJson(
             "/api/businesses/{$business->id}/availability"
                 . "?staff_id={$staff->id}"
@@ -645,7 +761,11 @@ class AvailabilityTest extends TestCase
                 . "&date={$date->format('Y-m-d')}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $this->assertNotEmpty(
@@ -657,7 +777,11 @@ class AvailabilityTest extends TestCase
     // block out all available slots in that specific date
     public function test_full_day_time_off_returns_no_available_slots()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -697,7 +821,11 @@ class AvailabilityTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->getJson(
             "/api/businesses/{$business->id}/availability"
                 . "?staff_id={$staff->id}"
@@ -705,7 +833,11 @@ class AvailabilityTest extends TestCase
                 . "&date={$date->format('Y-m-d')}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $this->assertEmpty(
@@ -723,7 +855,11 @@ class AvailabilityTest extends TestCase
     // for that specific staff member in that specific date
     public function test_pending_appointment_blocks_available_slots()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -781,7 +917,11 @@ class AvailabilityTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->getJson(
             "/api/businesses/{$business->id}/availability"
                 . "?staff_id={$staff->id}"
@@ -789,7 +929,11 @@ class AvailabilityTest extends TestCase
                 . "&date={$date->format('Y-m-d')}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $slots = $response->json('available_slots');
@@ -810,7 +954,11 @@ class AvailabilityTest extends TestCase
     // that specific time slot availability for the staff member
     public function test_confirmed_appointment_blocks_available_slots()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -868,7 +1016,11 @@ class AvailabilityTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->getJson(
             "/api/businesses/{$business->id}/availability"
                 . "?staff_id={$staff->id}"
@@ -876,7 +1028,11 @@ class AvailabilityTest extends TestCase
                 . "&date={$date->format('Y-m-d')}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $slots = $response->json('available_slots');
@@ -897,7 +1053,11 @@ class AvailabilityTest extends TestCase
     // out the available time slot for the staff member
     public function test_cancelled_appointment_does_not_block_available_slots()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -955,7 +1115,11 @@ class AvailabilityTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->getJson(
             "/api/businesses/{$business->id}/availability"
                 . "?staff_id={$staff->id}"
@@ -963,7 +1127,11 @@ class AvailabilityTest extends TestCase
                 . "&date={$date->format('Y-m-d')}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $slots = $response->json('available_slots');
@@ -995,7 +1163,11 @@ class AvailabilityTest extends TestCase
     // one appointment
     public function test_multiple_active_appointments_block_their_respective_slots()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -1063,7 +1235,11 @@ class AvailabilityTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->getJson(
             "/api/businesses/{$business->id}/availability"
                 . "?staff_id={$staff->id}"
@@ -1071,7 +1247,11 @@ class AvailabilityTest extends TestCase
                 . "&date={$date->format('Y-m-d')}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $slots = $response->json('available_slots');
@@ -1110,7 +1290,11 @@ class AvailabilityTest extends TestCase
     // is still available on the lsit
     public function test_slot_ending_exactly_when_appointment_starts_remains_available()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -1168,7 +1352,11 @@ class AvailabilityTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->getJson(
             "/api/businesses/{$business->id}/availability"
                 . "?staff_id={$staff->id}"
@@ -1176,7 +1364,11 @@ class AvailabilityTest extends TestCase
                 . "&date={$date->format('Y-m-d')}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $slots = $response->json('available_slots');
 
         $expectedSlot = [
@@ -1195,7 +1387,11 @@ class AvailabilityTest extends TestCase
     // (This is in case that the end schedule of the appointment is exactly the same as the start of that time slot)
     public function test_slot_starting_exactly_when_appointment_ends_remains_available()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -1253,7 +1449,11 @@ class AvailabilityTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->getJson(
             "/api/businesses/{$business->id}/availability"
                 . "?staff_id={$staff->id}"
@@ -1261,7 +1461,11 @@ class AvailabilityTest extends TestCase
                 . "&date={$date->format('Y-m-d')}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
         $slots = $response->json('available_slots');
 
@@ -1282,7 +1486,11 @@ class AvailabilityTest extends TestCase
     // This is to test that a time slot schedule that exactly ends with the closing time should still be available from the list 
     public function test_slot_ending_exactly_at_closing_time_is_available()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -1316,7 +1524,11 @@ class AvailabilityTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->getJson(
             "/api/businesses/{$business->id}/availability"
                 . "?staff_id={$staff->id}"
@@ -1324,7 +1536,11 @@ class AvailabilityTest extends TestCase
                 . "&date={$date->format('Y-m-d')}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $slots = $response->json('available_slots');
@@ -1344,7 +1560,11 @@ class AvailabilityTest extends TestCase
     // This is to test that any slots that ends past the closing time should not be generated on the list
     public function test_slot_extending_past_closing_time_is_not_available()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -1377,7 +1597,11 @@ class AvailabilityTest extends TestCase
 
         $this->actingAs($user, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->getJson(
             "/api/businesses/{$business->id}/availability"
                 . "?staff_id={$staff->id}"
@@ -1385,7 +1609,11 @@ class AvailabilityTest extends TestCase
                 . "&date={$date->format('Y-m-d')}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $slots = $response->json('available_slots');
@@ -1418,14 +1646,22 @@ class AvailabilityTest extends TestCase
     // This is to test that the availability API requires staff id to operate
     public function test_availability_requires_staff_id()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
 
         $business = Business::factory()->create();
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this
             ->actingAs($user, 'sanctum')
             ->getJson(
@@ -1434,7 +1670,11 @@ class AvailabilityTest extends TestCase
                     . "&date=" . Carbon::today()->toDateString()
             );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['staff_id']);
     }
@@ -1442,7 +1682,11 @@ class AvailabilityTest extends TestCase
     // This is to test that the availability requires at least one service id in the process
     public function test_availability_requires_service_ids()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -1458,7 +1702,11 @@ class AvailabilityTest extends TestCase
 
         $date = Carbon::today()->next(Carbon::THURSDAY);
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this
             ->actingAs($user, 'sanctum')
             ->getJson(
@@ -1467,7 +1715,11 @@ class AvailabilityTest extends TestCase
                     . "&date={$date->toDateString()}"
             );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['service_ids']);
     }
@@ -1475,7 +1727,11 @@ class AvailabilityTest extends TestCase
     // This is to test the need of a valid date for the availability API
     public function test_availability_requires_date()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -1493,7 +1749,11 @@ class AvailabilityTest extends TestCase
             'business_id' => $business->id,
         ]);
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this
             ->actingAs($user, 'sanctum')
             ->getJson(
@@ -1502,7 +1762,11 @@ class AvailabilityTest extends TestCase
                     . "&service_ids[]={$service->id}"
             );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['date']);
     }
@@ -1510,7 +1774,11 @@ class AvailabilityTest extends TestCase
     // This is to test that the API rejects nonexistent staff ids
     public function test_availability_rejects_nonexistent_staff_id()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -1523,7 +1791,11 @@ class AvailabilityTest extends TestCase
 
         $date = Carbon::today()->next(Carbon::THURSDAY);
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this
             ->actingAs($user, 'sanctum')
             ->getJson(
@@ -1533,7 +1805,11 @@ class AvailabilityTest extends TestCase
                     . "&date={$date->toDateString()}"
             );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['staff_id']);
     }
@@ -1541,7 +1817,11 @@ class AvailabilityTest extends TestCase
     // This is to test that the API rejects nonexistent service ids in the process
     public function test_availability_rejects_nonexistent_service_id()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -1557,7 +1837,11 @@ class AvailabilityTest extends TestCase
 
         $date = Carbon::today()->next(Carbon::THURSDAY);
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this
             ->actingAs($user, 'sanctum')
             ->getJson(
@@ -1567,7 +1851,11 @@ class AvailabilityTest extends TestCase
                     . "&date={$date->toDateString()}"
             );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['service_ids.0']);
     }
@@ -1575,7 +1863,11 @@ class AvailabilityTest extends TestCase
     // This is to test that the API rejects a staff member from another business
     public function test_availability_rejects_staff_from_another_business()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -1596,7 +1888,11 @@ class AvailabilityTest extends TestCase
 
         $date = Carbon::today()->next(Carbon::THURSDAY);
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this
             ->actingAs($user, 'sanctum')
             ->getJson(
@@ -1606,7 +1902,11 @@ class AvailabilityTest extends TestCase
                     . "&date={$date->toDateString()}"
             );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(404);
 
         $response->assertJson([
@@ -1617,7 +1917,11 @@ class AvailabilityTest extends TestCase
     // This is to test that the API rejects any services that comes from another business
     public function test_availability_rejects_service_from_another_business()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -1638,7 +1942,11 @@ class AvailabilityTest extends TestCase
 
         $date = Carbon::today()->next(Carbon::THURSDAY);
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this
             ->actingAs($user, 'sanctum')
             ->getJson(
@@ -1648,11 +1956,220 @@ class AvailabilityTest extends TestCase
                     . "&date={$date->toDateString()}"
             );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(404);
 
         $response->assertJson([
             'message' => 'The selected service does not belong to this business.',
         ]);
+    }
+
+    /*
+    |==========================================================================
+    | AVAILABILITY AUTHENTICATION/AUTHORIZATION TEST CASES
+    |==========================================================================
+    */
+
+    // This is to test that unauthenticated users cannot view the availability API
+    public function test_unauthenticated_user_cannot_view_availability()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $business = Business::factory()->create();
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->getJson(
+            "/api/businesses/{$business->id}/availability"
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(401);
+    }
+
+    // This is to test that an admin can view the availability API in their own business
+    public function test_admin_can_view_own_business_availability()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $user->businesses()->attach($business->id);
+
+        $staffUser = User::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $date = Carbon::today()->next(Carbon::THURSDAY);
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id={$staff->id}"
+                    . "&service_ids[]={$service->id}"
+                    . "&date={$date->toDateString()}"
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+    }
+
+    // This is to test that an admin cannot view the API through another business id
+    public function test_admin_cannot_view_another_business_availability()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        // HERE - Do NOT attach this business to the admin.
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(403);
+    }
+
+    // This is to test that a staff user can only view the API under their respective business
+    public function test_staff_user_can_view_own_business_availability()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'user_id' => $user->id,
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $date = Carbon::today()->next(Carbon::THURSDAY);
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id={$staff->id}"
+                    . "&service_ids[]={$service->id}"
+                    . "&date={$date->toDateString()}"
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+    }
+
+    // This is to test that a staff member cannot view the API through another business id
+    public function test_staff_user_cannot_view_another_business_availability()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $business = Business::factory()->create();
+        $otherBusiness = Business::factory()->create();
+
+        Staff::factory()->create([
+            'user_id' => $user->id,
+            'business_id' => $business->id,
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$otherBusiness->id}/availability"
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(403);
     }
 }
