@@ -1,0 +1,1658 @@
+<?php
+
+namespace Tests\Feature;
+
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Models\Appointment;
+use App\Models\Business;
+use Illuminate\Support\Carbon;
+use App\Models\Customer;
+use App\Models\Service;
+use App\Models\Staff;
+use App\Models\StaffHour;
+use App\Models\StaffTimeOff;
+use App\Models\AppointmentService;
+use App\Models\User;
+use Tests\TestCase;
+
+class AvailabilityTest extends TestCase
+{
+    use RefreshDatabase;
+
+    /*
+    |==========================================================================
+    | BASIC AVAILABILITY TEST CASES
+    |==========================================================================
+    */
+
+    // This is to test that a selected staff can generate an available slots during working hours
+    // when generating the availabilty list
+    public function test_staff_has_available_slots_during_working_hours()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->startOfDay();
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act
+        $response = $this->getJson(
+            "/api/businesses/{$business->id}/availability"
+                . "?staff_id={$staff->id}"
+                . "&service_ids[]={$service->id}"
+                . "&date={$date->format('Y-m-d')}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $response->assertJsonStructure([
+            'date',
+            'staff' => [
+                'id',
+                'last_name',
+                'first_name',
+            ],
+            'services' => [
+                '*' => [
+                    'id',
+                    'name',
+                    'duration_minutes',
+                    'buffer_minutes',
+                ],
+            ],
+            'available_slots',
+        ]);
+
+        $this->assertNotEmpty(
+            $response->json('available_slots')
+        );
+    }
+
+    // This is to test that a selected staff generates an empty slot when the selected day
+    // of the week is assigned as a day off
+    public function test_staff_has_no_available_slots_when_day_is_off()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->startOfDay();
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => true,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act
+        $response = $this->getJson(
+            "/api/businesses/{$business->id}/availability"
+                . "?staff_id={$staff->id}"
+                . "&service_ids[]={$service->id}"
+                . "&date={$date->format('Y-m-d')}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $this->assertEmpty(
+            $response->json('available_slots')
+        );
+    }
+
+    // This is to test that a selected staff generates an empty slot when the selected day
+    // of the week does not have a stff hour record to it
+    public function test_staff_has_no_available_slots_when_no_working_hours_exist()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->startOfDay();
+
+        // No StaffHour is created for this date.
+
+        $staff->services()->attach($service->id);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act
+        $response = $this->getJson(
+            "/api/businesses/{$business->id}/availability"
+                . "?staff_id={$staff->id}"
+                . "&service_ids[]={$service->id}"
+                . "&date={$date->format('Y-m-d')}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $this->assertEmpty(
+            $response->json('available_slots')
+        );
+    }
+
+    // This is to test that the availability slots respects the service duration and buffer in 
+    // the calculation
+    public function test_availability_respects_service_duration_and_buffer()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->startOfDay();
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '10:00:00',
+            'is_off' => false,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act
+        $response = $this->getJson(
+            "/api/businesses/{$business->id}/availability"
+                . "?staff_id={$staff->id}"
+                . "&service_ids[]={$service->id}"
+                . "&date={$date->format('Y-m-d')}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $slots = $response->json('available_slots');
+
+        $this->assertNotEmpty($slots);
+
+        foreach ($slots as $slot) {
+            $start = Carbon::parse($slot['start']);
+            $end = Carbon::parse($slot['end']);
+
+            // 30-minute service + 15-minute buffer = 45 minutes occupied.
+            $this->assertEquals(
+                45,
+                $start->diffInMinutes($end)
+            );
+
+            // Slot must remain inside working hours.
+            $this->assertGreaterThanOrEqual(
+                '09:00',
+                $start->format('H:i')
+            );
+
+            $this->assertLessThanOrEqual(
+                '10:00',
+                $end->format('H:i')
+            );
+        }
+    }
+
+    /*
+    |==========================================================================
+    | STAFF/SERVICE RULE TEST CASES
+    |==========================================================================
+    */
+
+    // This is to test that a staff member w/o the specific services assigned to them will
+    // not generate any available slots
+    public function test_staff_without_service_has_no_available_slots()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->startOfDay();
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        // Intentionally do NOT assign the service to the staff.
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act
+        $response = $this->getJson(
+            "/api/businesses/{$business->id}/availability"
+                . "?staff_id={$staff->id}"
+                . "&service_ids[]={$service->id}"
+                . "&date={$date->format('Y-m-d')}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $this->assertEmpty(
+            $response->json('available_slots')
+        );
+    }
+
+    // This is to test that a staff w/ the specified service can generate available slots
+    public function test_staff_with_assigned_service_has_available_slots()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->startOfDay();
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act
+        $response = $this->getJson(
+            "/api/businesses/{$business->id}/availability"
+                . "?staff_id={$staff->id}"
+                . "&service_ids[]={$service->id}"
+                . "&date={$date->format('Y-m-d')}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $this->assertNotEmpty(
+            $response->json('available_slots')
+        );
+    }
+
+    // This is to test that multiple services will combine all the total durations into 
+    // each generated slots
+    public function test_multi_service_availability_uses_combined_duration_and_buffer()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $serviceOne = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $serviceTwo = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 45,
+            'buffer_minutes' => 10,
+        ]);
+
+        $date = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->startOfDay();
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '12:00:00',
+            'is_off' => false,
+        ]);
+
+        $staff->services()->attach([
+            $serviceOne->id,
+            $serviceTwo->id,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act
+        $response = $this->getJson(
+            "/api/businesses/{$business->id}/availability"
+                . "?staff_id={$staff->id}"
+                . "&service_ids[]={$serviceOne->id}"
+                . "&service_ids[]={$serviceTwo->id}"
+                . "&date={$date->format('Y-m-d')}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $slots = $response->json('available_slots');
+
+        $this->assertNotEmpty($slots);
+
+        foreach ($slots as $slot) {
+            $start = Carbon::parse($slot['start']);
+            $end = Carbon::parse($slot['end']);
+
+            // 30 + 15 + 45 + 10 = 100 minutes.
+            $this->assertEquals(
+                100,
+                $start->diffInMinutes($end)
+            );
+        }
+    }
+
+    // This is to test that the availability slots will not generate if at least one service is not currently
+    // assigned by the specified staff member
+    public function test_multi_service_availability_returns_no_slots_when_one_service_is_unassigned()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $serviceOne = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $serviceTwo = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 45,
+            'buffer_minutes' => 10,
+        ]);
+
+        $date = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->startOfDay();
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        // Staff provides service one but NOT service two.
+        $staff->services()->attach($serviceOne->id);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act
+        $response = $this->getJson(
+            "/api/businesses/{$business->id}/availability"
+                . "?staff_id={$staff->id}"
+                . "&service_ids[]={$serviceOne->id}"
+                . "&service_ids[]={$serviceTwo->id}"
+                . "&date={$date->format('Y-m-d')}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $this->assertEmpty(
+            $response->json('available_slots')
+        );
+    }
+
+    /*
+    |==========================================================================
+    | TIME-OFF HANDLING TEST CASES
+    |==========================================================================
+    */
+    // This is to test that the generated available slots will not include a time slot
+    // where an existing time off record overlaps to that time slot
+    public function test_staff_time_off_blocks_available_slots()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->startOfDay();
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        StaffTimeOff::factory()->create([
+            'staff_id' => $staff->id,
+            'start_datetime' => $date->copy()->setTime(12, 0),
+            'end_datetime' => $date->copy()->setTime(13, 0),
+            'reason' => 'Personal appointment',
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act
+        $response = $this->getJson(
+            "/api/businesses/{$business->id}/availability"
+                . "?staff_id={$staff->id}"
+                . "&service_ids[]={$service->id}"
+                . "&date={$date->format('Y-m-d')}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $slots = $response->json('available_slots');
+
+        $this->assertNotEmpty($slots);
+
+        foreach ($slots as $slot) {
+            $start = Carbon::parse($slot['start']);
+            $end = Carbon::parse($slot['end']);
+
+            // No available slot may overlap the 12:00–13:00 time-off.
+            $this->assertTrue(
+                $end->lte($date->copy()->setTime(12, 0))
+                    || $start->gte($date->copy()->setTime(13, 0))
+            );
+        }
+    }
+
+    // This is to test that any time-off records of a specific staff that is outside working
+    // hours does not affect the generated availability slots
+    public function test_time_off_outside_working_hours_does_not_affect_availability()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->startOfDay();
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        StaffTimeOff::factory()->create([
+            'staff_id' => $staff->id,
+            'start_datetime' => $date->copy()->setTime(18, 0),
+            'end_datetime' => $date->copy()->setTime(19, 0),
+            'reason' => 'Personal appointment',
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act
+        $response = $this->getJson(
+            "/api/businesses/{$business->id}/availability"
+                . "?staff_id={$staff->id}"
+                . "&service_ids[]={$service->id}"
+                . "&date={$date->format('Y-m-d')}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $this->assertNotEmpty(
+            $response->json('available_slots')
+        );
+    }
+
+    // This is to test that a time-off record that covers a whole day will completely 
+    // block out all available slots in that specific date
+    public function test_full_day_time_off_returns_no_available_slots()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->startOfDay();
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        StaffTimeOff::factory()->create([
+            'staff_id' => $staff->id,
+            'start_datetime' => $date->copy()->setTime(9, 0),
+            'end_datetime' => $date->copy()->setTime(17, 0),
+            'reason' => 'Day off',
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act
+        $response = $this->getJson(
+            "/api/businesses/{$business->id}/availability"
+                . "?staff_id={$staff->id}"
+                . "&service_ids[]={$service->id}"
+                . "&date={$date->format('Y-m-d')}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $this->assertEmpty(
+            $response->json('available_slots')
+        );
+    }
+
+    /*
+    |==========================================================================
+    | EXISTING APPOINTMENT HANDLING TEST CASES
+    |==========================================================================
+    */
+
+    // This is to test that a pending appointment schedule blocks out that available time slot
+    // for that specific staff member in that specific date
+    public function test_pending_appointment_blocks_available_slots()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->startOfDay();
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentStart = $date->copy()->setTime(10, 0);
+        $appointmentEnd = $appointmentStart->copy()->addMinutes(45);
+
+        $appointment = Appointment::factory()->create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentStart,
+            'end_datetime' => $appointmentEnd,
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::factory()->create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act
+        $response = $this->getJson(
+            "/api/businesses/{$business->id}/availability"
+                . "?staff_id={$staff->id}"
+                . "&service_ids[]={$service->id}"
+                . "&date={$date->format('Y-m-d')}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $slots = $response->json('available_slots');
+
+        foreach ($slots as $slot) {
+            $start = Carbon::parse($slot['start']);
+            $end = Carbon::parse($slot['end']);
+
+            // No slot may overlap the pending appointment.
+            $this->assertTrue(
+                $end->lte($appointmentStart)
+                    || $start->gte($appointmentEnd)
+            );
+        }
+    }
+
+    // This is to test that a confirmed appointment schedule also blocks out
+    // that specific time slot availability for the staff member
+    public function test_confirmed_appointment_blocks_available_slots()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->startOfDay();
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentStart = $date->copy()->setTime(10, 0);
+        $appointmentEnd = $appointmentStart->copy()->addMinutes(45);
+
+        $appointment = Appointment::factory()->create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentStart,
+            'end_datetime' => $appointmentEnd,
+            'status' => 'confirmed',
+        ]);
+
+        AppointmentService::factory()->create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act
+        $response = $this->getJson(
+            "/api/businesses/{$business->id}/availability"
+                . "?staff_id={$staff->id}"
+                . "&service_ids[]={$service->id}"
+                . "&date={$date->format('Y-m-d')}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $slots = $response->json('available_slots');
+
+        foreach ($slots as $slot) {
+            $start = Carbon::parse($slot['start']);
+            $end = Carbon::parse($slot['end']);
+
+            // No slot may overlap the confirmed appointment.
+            $this->assertTrue(
+                $end->lte($appointmentStart)
+                    || $start->gte($appointmentEnd)
+            );
+        }
+    }
+
+    // This is to test that a cancelled appointment schedule does not block
+    // out the available time slot for the staff member
+    public function test_cancelled_appointment_does_not_block_available_slots()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->startOfDay();
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentStart = $date->copy()->setTime(10, 0);
+        $appointmentEnd = $appointmentStart->copy()->addMinutes(45);
+
+        $appointment = Appointment::factory()->create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentStart,
+            'end_datetime' => $appointmentEnd,
+            'status' => 'cancelled',
+        ]);
+
+        AppointmentService::factory()->create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act
+        $response = $this->getJson(
+            "/api/businesses/{$business->id}/availability"
+                . "?staff_id={$staff->id}"
+                . "&service_ids[]={$service->id}"
+                . "&date={$date->format('Y-m-d')}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $slots = $response->json('available_slots');
+
+        $this->assertNotEmpty($slots);
+
+        $matchingSlotExists = false;
+
+        foreach ($slots as $slot) {
+            $start = Carbon::parse($slot['start']);
+            $end = Carbon::parse($slot['end']);
+
+            if (
+                $start->equalTo($appointmentStart)
+                && $end->equalTo($appointmentEnd)
+            ) {
+                $matchingSlotExists = true;
+                break;
+            }
+        }
+
+        $this->assertTrue(
+            $matchingSlotExists,
+            'The cancelled appointment time should be available.'
+        );
+    }
+
+    // This is to test that the availability does not simply stop generating slots after encountering 
+    // one appointment
+    public function test_multiple_active_appointments_block_their_respective_slots()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->startOfDay();
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $firstStart = $date->copy()->setTime(10, 0);
+        $firstEnd = $firstStart->copy()->addMinutes(45);
+
+        $secondStart = $date->copy()->setTime(14, 0);
+        $secondEnd = $secondStart->copy()->addMinutes(45);
+
+        foreach (
+            [
+                [$firstStart, $firstEnd, 'pending'],
+                [$secondStart, $secondEnd, 'confirmed'],
+            ] as [$start, $end, $status]
+        ) {
+            $appointment = Appointment::factory()->create([
+                'business_id' => $business->id,
+                'customer_id' => $customer->id,
+                'staff_id' => $staff->id,
+                'start_datetime' => $start,
+                'end_datetime' => $end,
+                'status' => $status,
+            ]);
+
+            AppointmentService::factory()->create([
+                'appointment_id' => $appointment->id,
+                'service_id' => $service->id,
+                'price' => $service->price,
+                'currency' => $business->currency,
+                'duration_minutes' => $service->duration_minutes,
+                'buffer_minutes' => $service->buffer_minutes,
+            ]);
+        }
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act
+        $response = $this->getJson(
+            "/api/businesses/{$business->id}/availability"
+                . "?staff_id={$staff->id}"
+                . "&service_ids[]={$service->id}"
+                . "&date={$date->format('Y-m-d')}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $slots = $response->json('available_slots');
+
+        foreach ($slots as $slot) {
+            $start = Carbon::parse($slot['start']);
+            $end = Carbon::parse($slot['end']);
+
+            $firstAppointmentOverlap =
+                $start->lt($firstEnd)
+                && $end->gt($firstStart);
+
+            $secondAppointmentOverlap =
+                $start->lt($secondEnd)
+                && $end->gt($secondStart);
+
+            $this->assertFalse(
+                $firstAppointmentOverlap,
+                'A slot overlaps the first active appointment.'
+            );
+
+            $this->assertFalse(
+                $secondAppointmentOverlap,
+                'A slot overlaps the second active appointment.'
+            );
+        }
+    }
+
+    /*
+    |==========================================================================
+    | AVAILABILITY BOUNDARY CONDITION TEST CASES
+    |==========================================================================
+    */
+
+    // This is to test that the time slot that ends EXACTLY before the start of the appointment schedule
+    // is still available on the lsit
+    public function test_slot_ending_exactly_when_appointment_starts_remains_available()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->startOfDay();
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentStart = $date->copy()->setTime(10, 0);
+        $appointmentEnd = $appointmentStart->copy()->addMinutes(45);
+
+        $appointment = Appointment::factory()->create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentStart,
+            'end_datetime' => $appointmentEnd,
+            'status' => 'confirmed',
+        ]);
+
+        AppointmentService::factory()->create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act
+        $response = $this->getJson(
+            "/api/businesses/{$business->id}/availability"
+                . "?staff_id={$staff->id}"
+                . "&service_ids[]={$service->id}"
+                . "&date={$date->format('Y-m-d')}"
+        );
+
+        // Assert
+        $slots = $response->json('available_slots');
+
+        $expectedSlot = [
+            'start' => $date->copy()->setTime(9, 15)->format('H:i'),
+            'end' => $date->copy()->setTime(10, 0)->format('H:i'),
+        ];
+
+        $this->assertContains(
+            $expectedSlot,
+            $slots,
+            'The 09:15–10:00 slot should remain available.'
+        );
+    }
+
+    // This is to test that the time slot that exactly starts at the end of the occupied schedule is still available 
+    // (This is in case that the end schedule of the appointment is exactly the same as the start of that time slot)
+    public function test_slot_starting_exactly_when_appointment_ends_remains_available()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->startOfDay();
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentStart = $date->copy()->setTime(10, 0);
+        $appointmentEnd = $appointmentStart->copy()->addMinutes(45);
+
+        $appointment = Appointment::factory()->create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentStart,
+            'end_datetime' => $appointmentEnd,
+            'status' => 'confirmed',
+        ]);
+
+        AppointmentService::factory()->create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act
+        $response = $this->getJson(
+            "/api/businesses/{$business->id}/availability"
+                . "?staff_id={$staff->id}"
+                . "&service_ids[]={$service->id}"
+                . "&date={$date->format('Y-m-d')}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+        $slots = $response->json('available_slots');
+
+        $expectedSlot = [
+            'start' => $appointmentEnd->format('H:i'),
+            'end' => $appointmentEnd->copy()
+                ->addMinutes(45)
+                ->format('H:i'),
+        ];
+
+        $this->assertContains(
+            $expectedSlot,
+            $slots,
+            'The 10:45–11:30 slot should remain available.'
+        );
+    }
+
+    // This is to test that a time slot schedule that exactly ends with the closing time should still be available from the list 
+    public function test_slot_ending_exactly_at_closing_time_is_available()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->startOfDay();
+
+        //set to 10:00:00 for test purposes
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '10:00:00',
+            'is_off' => false,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act
+        $response = $this->getJson(
+            "/api/businesses/{$business->id}/availability"
+                . "?staff_id={$staff->id}"
+                . "&service_ids[]={$service->id}"
+                . "&date={$date->format('Y-m-d')}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $slots = $response->json('available_slots');
+
+        $expectedSlot = [
+            'start' => $date->copy()->setTime(9, 15)->format('H:i'),
+            'end' => $date->copy()->setTime(10, 0)->format('H:i'),
+        ];
+
+        $this->assertContains(
+            $expectedSlot,
+            $slots,
+            'The 09:15–10:00 slot should remain available.'
+        );
+    }
+
+    // This is to test that any slots that ends past the closing time should not be generated on the list
+    public function test_slot_extending_past_closing_time_is_not_available()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->startOfDay();
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '10:00:00',
+            'is_off' => false,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act
+        $response = $this->getJson(
+            "/api/businesses/{$business->id}/availability"
+                . "?staff_id={$staff->id}"
+                . "&service_ids[]={$service->id}"
+                . "&date={$date->format('Y-m-d')}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $slots = $response->json('available_slots');
+
+        foreach ($slots as $slot) {
+            $this->assertLessThanOrEqual(
+                '10:00',
+                $slot['end'],
+                "Slot {$slot['start']}-{$slot['end']} extends past closing time."
+            );
+        }
+
+        $invalidSlotExists = collect($slots)->contains([
+            'start' => '09:30',
+            'end' => '10:15',
+        ]);
+
+        $this->assertFalse(
+            $invalidSlotExists,
+            'A slot extending past closing time must not be available.'
+        );
+    }
+
+    /*
+    |==========================================================================
+    | AVAILABILITY VALIDATION AND BUSINESS ISOLATION TEST CASES
+    |==========================================================================
+    */
+
+    // This is to test that the availability API requires staff id to operate
+    public function test_availability_requires_staff_id()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        // Act
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?service_ids[]=1"
+                    . "&date=" . Carbon::today()->toDateString()
+            );
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['staff_id']);
+    }
+
+    // This is to test that the availability requires at least one service id in the process
+    public function test_availability_requires_service_ids()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staffUser = User::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $date = Carbon::today()->next(Carbon::THURSDAY);
+
+        // Act
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id={$staff->id}"
+                    . "&date={$date->toDateString()}"
+            );
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['service_ids']);
+    }
+
+    // This is to test the need of a valid date for the availability API
+    public function test_availability_requires_date()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staffUser = User::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        // Act
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id={$staff->id}"
+                    . "&service_ids[]={$service->id}"
+            );
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['date']);
+    }
+
+    // This is to test that the API rejects nonexistent staff ids
+    public function test_availability_rejects_nonexistent_staff_id()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $date = Carbon::today()->next(Carbon::THURSDAY);
+
+        // Act
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id=999999"
+                    . "&service_ids[]={$service->id}"
+                    . "&date={$date->toDateString()}"
+            );
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['staff_id']);
+    }
+
+    // This is to test that the API rejects nonexistent service ids in the process
+    public function test_availability_rejects_nonexistent_service_id()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staffUser = User::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $date = Carbon::today()->next(Carbon::THURSDAY);
+
+        // Act
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id={$staff->id}"
+                    . "&service_ids[]=999999"
+                    . "&date={$date->toDateString()}"
+            );
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['service_ids.0']);
+    }
+
+    // This is to test that the API rejects a staff member from another business
+    public function test_availability_rejects_staff_from_another_business()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+        $otherBusiness = Business::factory()->create();
+
+        $staffUser = User::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $otherBusiness->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $date = Carbon::today()->next(Carbon::THURSDAY);
+
+        // Act
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id={$staff->id}"
+                    . "&service_ids[]={$service->id}"
+                    . "&date={$date->toDateString()}"
+            );
+
+        // Assert
+        $response->assertStatus(404);
+
+        $response->assertJson([
+            'message' => 'The selected staff member does not belong to this business.',
+        ]);
+    }
+
+    // This is to test that the API rejects any services that comes from another business
+    public function test_availability_rejects_service_from_another_business()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+        $otherBusiness = Business::factory()->create();
+
+        $staffUser = User::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $otherBusiness->id,
+        ]);
+
+        $date = Carbon::today()->next(Carbon::THURSDAY);
+
+        // Act
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id={$staff->id}"
+                    . "&service_ids[]={$service->id}"
+                    . "&date={$date->toDateString()}"
+            );
+
+        // Assert
+        $response->assertStatus(404);
+
+        $response->assertJson([
+            'message' => 'The selected service does not belong to this business.',
+        ]);
+    }
+}
