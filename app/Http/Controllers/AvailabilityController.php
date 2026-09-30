@@ -124,6 +124,7 @@ class AvailabilityController extends Controller
             ],
             'service_ids.*' => [
                 'integer',
+                'distinct',
                 'exists:services,id',
             ],
 
