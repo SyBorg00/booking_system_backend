@@ -2576,7 +2576,11 @@ class AvailabilityTest extends TestCase
     // This is to test that the API can generate slots on multiple working periods on a single day
     public function test_availability_supports_multiple_working_periods()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -2614,7 +2618,11 @@ class AvailabilityTest extends TestCase
 
         $staff->services()->attach($service->id);
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this
             ->actingAs($user, 'sanctum')
             ->getJson(
@@ -2624,7 +2632,11 @@ class AvailabilityTest extends TestCase
                     . "&date={$date->toDateString()}"
             );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $slots = $response->json('available_slots');
@@ -2671,7 +2683,11 @@ class AvailabilityTest extends TestCase
     // This is to test that a time slot that starts exactly after a time off ends is available on the list
     public function test_slot_starting_exactly_when_time_off_ends_remains_available()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -2708,7 +2724,11 @@ class AvailabilityTest extends TestCase
             'reason' => 'Test time off',
         ]);
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this
             ->actingAs($user, 'sanctum')
             ->getJson(
@@ -2718,7 +2738,11 @@ class AvailabilityTest extends TestCase
                     . "&date={$date->toDateString()}"
             );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $slots = $response->json('available_slots');
@@ -2732,7 +2756,11 @@ class AvailabilityTest extends TestCase
     // This is to test that a time slot that ends exactly where the time off starts is still available on the list
     public function test_slot_ending_exactly_when_time_off_starts_remains_available()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -2769,7 +2797,11 @@ class AvailabilityTest extends TestCase
             'reason' => 'Test time off',
         ]);
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this
             ->actingAs($user, 'sanctum')
             ->getJson(
@@ -2779,7 +2811,11 @@ class AvailabilityTest extends TestCase
                     . "&date={$date->toDateString()}"
             );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $slots = $response->json('available_slots');
@@ -2794,7 +2830,11 @@ class AvailabilityTest extends TestCase
     // e.g: Working Hours: 09:17:00 and Appointment: 09:00-09:45 -> only allow 10:00 to 10:45 to be listed
     public function test_appointment_at_start_of_working_hours_blocks_overlapping_slots()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -2838,7 +2878,11 @@ class AvailabilityTest extends TestCase
             'status' => 'confirmed',
         ]);
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this
             ->actingAs($user, 'sanctum')
             ->getJson(
@@ -2848,7 +2892,11 @@ class AvailabilityTest extends TestCase
                     . "&date={$date->toDateString()}"
             );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $slots = $response->json('available_slots');
@@ -2867,5 +2915,261 @@ class AvailabilityTest extends TestCase
             'start' => '09:45',
             'end' => '10:30',
         ], $slots);
+    }
+
+    /*
+    |==========================================================================
+    | DATE AND INPUT EDGEs TEST CASES
+    |==========================================================================
+    */
+
+    // Test that that the API rejects invalid date formatting
+    public function test_availability_rejects_invalid_date()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staffUser = User::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id={$staff->id}"
+                    . "&service_ids[]={$service->id}"
+                    . "&date=not-a-date"
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors([
+            'date',
+        ]);
+    }
+
+    // API should reject an empty service id in the input
+    public function test_availability_rejects_empty_service_ids()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staffUser = User::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $date = Carbon::today()->next(Carbon::THURSDAY);
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id={$staff->id}"
+                    . "&service_ids[]="
+                    . "&date={$date->toDateString()}"
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        //Hard coded to .0 for reasons
+        $response->assertJsonValidationErrors([
+            'service_ids.0',
+        ]);
+    }
+
+    // API must reject any duplicate service ids from being processed
+    public function test_availability_rejects_duplicate_service_ids()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staffUser = User::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $date = Carbon::today()->next(Carbon::THURSDAY);
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id={$staff->id}"
+                    . "&service_ids[]={$service->id}"
+                    . "&service_ids[]={$service->id}"
+                    . "&date={$date->toDateString()}"
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors([
+            'service_ids.1',
+        ]);
+    }
+
+    // API rejects invalid staff id input
+    public function test_availability_rejects_invalid_staff_id_type()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $date = Carbon::today()->next(Carbon::THURSDAY);
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id=abc"
+                    . "&service_ids[]={$service->id}"
+                    . "&date={$date->toDateString()}"
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors([
+            'staff_id',
+        ]);
+    }
+
+    // API must rehect invalid service id input
+    public function test_availability_rejects_invalid_service_id_type()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staffUser = User::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $date = Carbon::today()->next(Carbon::THURSDAY);
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id={$staff->id}"
+                    . "&service_ids[]=abc"
+                    . "&date={$date->toDateString()}"
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors([
+            'service_ids.0',
+        ]);
     }
 }
