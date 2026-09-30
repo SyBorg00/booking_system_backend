@@ -2172,4 +2172,398 @@ class AvailabilityTest extends TestCase
         */
         $response->assertStatus(403);
     }
+
+    /*
+    |==========================================================================
+    | AVAILABILITY RESPONSE CORRECTEDNESS TEST CASES
+    |==========================================================================
+    */
+
+    // This is to test that the API returns the data w/ the proper requested date
+    public function test_availability_returns_requested_date()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staffUser = User::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $date = Carbon::today()->next(Carbon::THURSDAY);
+
+        $staff->hours()->create([
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id={$staff->id}"
+                    . "&service_ids[]={$service->id}"
+                    . "&date={$date->toDateString()}"
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJsonPath(
+            'date',
+            $date->toDateString()
+        );
+    }
+
+    // This is to test that the API returns the data w/ the correct staff info
+    public function test_availability_returns_correct_staff_information()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staffUser = User::factory()->create([
+            'first_name' => 'Alex',
+            'last_name' => 'Cartwright',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $date = Carbon::today()->next(Carbon::THURSDAY);
+
+        $staff->hours()->create([
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id={$staff->id}"
+                    . "&service_ids[]={$service->id}"
+                    . "&date={$date->toDateString()}"
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJsonPath(
+            'staff.id',
+            $staff->id
+        );
+
+        $response->assertJsonPath(
+            'staff.first_name',
+            'Alex'
+        );
+
+        $response->assertJsonPath(
+            'staff.last_name',
+            'Cartwright'
+        );
+    }
+
+    // This is to test that the API returns the data w/ correct service information
+    public function test_availability_returns_correct_service_information()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staffUser = User::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'name' => 'Facial',
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::today()->next(Carbon::THURSDAY);
+
+        $staff->hours()->create([
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id={$staff->id}"
+                    . "&service_ids[]={$service->id}"
+                    . "&date={$date->toDateString()}"
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJsonPath(
+            'services.0.id',
+            $service->id
+        );
+
+        $response->assertJsonPath(
+            'services.0.name',
+            'Facial'
+        );
+
+        $response->assertJsonPath(
+            'services.0.duration_minutes',
+            30
+        );
+
+        $response->assertJsonPath(
+            'services.0.buffer_minutes',
+            15
+        );
+    }
+
+    // This is to test that the generated slots have the correct structure
+    public function test_availability_slots_have_correct_structure()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staffUser = User::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::today()->next(Carbon::THURSDAY);
+
+        $staff->hours()->create([
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id={$staff->id}"
+                    . "&service_ids[]={$service->id}"
+                    . "&date={$date->toDateString()}"
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $slots = $response->json('available_slots');
+
+        $this->assertNotEmpty($slots);
+
+        foreach ($slots as $slot) {
+            $this->assertArrayHasKey('start', $slot);
+            $this->assertArrayHasKey('end', $slot);
+
+            $this->assertIsString($slot['start']);
+            $this->assertIsString($slot['end']);
+
+            $this->assertMatchesRegularExpression(
+                '/^\d{2}:\d{2}$/',
+                $slot['start']
+            );
+
+            $this->assertMatchesRegularExpression(
+                '/^\d{2}:\d{2}$/',
+                $slot['end']
+            );
+        }
+    }
+
+    // This is to test that the API returns the data w/ correct multiple service info
+    public function test_availability_returns_multiple_services_correctly()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staffUser = User::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $serviceOne = Service::factory()->create([
+            'business_id' => $business->id,
+            'name' => 'Facial',
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $serviceTwo = Service::factory()->create([
+            'business_id' => $business->id,
+            'name' => 'Massage',
+            'duration_minutes' => 45,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::today()->next(Carbon::THURSDAY);
+
+        $staff->hours()->create([
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $staff->services()->attach([
+            $serviceOne->id,
+            $serviceTwo->id,
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id={$staff->id}"
+                    . "&service_ids[]={$serviceOne->id}"
+                    . "&service_ids[]={$serviceTwo->id}"
+                    . "&date={$date->toDateString()}"
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $services = $response->json('services');
+
+        $this->assertCount(2, $services);
+
+        $this->assertEquals(
+            $serviceOne->id,
+            $services[0]['id']
+        );
+
+        $this->assertEquals(
+            $serviceTwo->id,
+            $services[1]['id']
+        );
+    }
 }
