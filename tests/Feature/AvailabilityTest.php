@@ -3182,7 +3182,11 @@ class AvailabilityTest extends TestCase
     // API should not generate availability slots when a staff is not assigned to any services at all
     public function test_staff_without_assigned_services_has_no_availability()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -3213,7 +3217,11 @@ class AvailabilityTest extends TestCase
 
         // Intentionally do not attach the service to the staff.
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this
             ->actingAs($user, 'sanctum')
             ->getJson(
@@ -3223,7 +3231,11 @@ class AvailabilityTest extends TestCase
                     . "&date={$date->toDateString()}"
             );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $this->assertEmpty(
@@ -3234,7 +3246,11 @@ class AvailabilityTest extends TestCase
     // When assigning multiple services, the staff must actually have those services assigned to them
     public function test_multi_service_availability_requires_all_services_to_be_assigned()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -3272,7 +3288,11 @@ class AvailabilityTest extends TestCase
         // Staff provides only the first service.
         $staff->services()->attach($serviceOne->id);
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this
             ->actingAs($user, 'sanctum')
             ->getJson(
@@ -3283,7 +3303,11 @@ class AvailabilityTest extends TestCase
                     . "&date={$date->toDateString()}"
             );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $this->assertEmpty(
@@ -3294,7 +3318,11 @@ class AvailabilityTest extends TestCase
     // API should not be able to use a service own by a different business 
     public function test_availability_cannot_use_service_from_another_business()
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $user = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -3315,7 +3343,11 @@ class AvailabilityTest extends TestCase
 
         $date = Carbon::today()->next(Carbon::THURSDAY);
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this
             ->actingAs($user, 'sanctum')
             ->getJson(
@@ -3325,7 +3357,11 @@ class AvailabilityTest extends TestCase
                     . "&date={$date->toDateString()}"
             );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(404);
 
         $response->assertJson([
