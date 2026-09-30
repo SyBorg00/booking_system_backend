@@ -3172,4 +3172,164 @@ class AvailabilityTest extends TestCase
             'service_ids.0',
         ]);
     }
+
+    /*
+    |==========================================================================
+    | AVAILABILITY REGRESSION TEST CASES
+    |==========================================================================
+    */
+
+    // API should not generate availability slots when a staff is not assigned to any services at all
+    public function test_staff_without_assigned_services_has_no_availability()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staffUser = User::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::today()->next(Carbon::THURSDAY);
+
+        $staff->hours()->create([
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        // Intentionally do not attach the service to the staff.
+
+        // Act
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id={$staff->id}"
+                    . "&service_ids[]={$service->id}"
+                    . "&date={$date->toDateString()}"
+            );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $this->assertEmpty(
+            $response->json('available_slots')
+        );
+    }
+
+    // When assigning multiple services, the staff must actually have those services assigned to them
+    public function test_multi_service_availability_requires_all_services_to_be_assigned()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staffUser = User::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $serviceOne = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $serviceTwo = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 45,
+            'buffer_minutes' => 15,
+        ]);
+
+        $date = Carbon::today()->next(Carbon::THURSDAY);
+
+        $staff->hours()->create([
+            'day_of_week' => $date->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        // Staff provides only the first service.
+        $staff->services()->attach($serviceOne->id);
+
+        // Act
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id={$staff->id}"
+                    . "&service_ids[]={$serviceOne->id}"
+                    . "&service_ids[]={$serviceTwo->id}"
+                    . "&date={$date->toDateString()}"
+            );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $this->assertEmpty(
+            $response->json('available_slots')
+        );
+    }
+
+    // API should not be able to use a service own by a different business 
+    public function test_availability_cannot_use_service_from_another_business()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+        $otherBusiness = Business::factory()->create();
+
+        $staffUser = User::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $otherBusiness->id,
+        ]);
+
+        $date = Carbon::today()->next(Carbon::THURSDAY);
+
+        // Act
+        $response = $this
+            ->actingAs($user, 'sanctum')
+            ->getJson(
+                "/api/businesses/{$business->id}/availability"
+                    . "?staff_id={$staff->id}"
+                    . "&service_ids[]={$service->id}"
+                    . "&date={$date->toDateString()}"
+            );
+
+        // Assert
+        $response->assertStatus(404);
+
+        $response->assertJson([
+            'message' => 'The selected service does not belong to this business.',
+        ]);
+    }
 }
