@@ -3,15 +3,8 @@
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use App\Models\Appointment;
 use App\Models\Business;
-use Illuminate\Support\Carbon;
-use App\Models\Customer;
-use App\Models\Service;
 use App\Models\Staff;
-use App\Models\StaffHour;
-use App\Models\StaffTimeOff;
-use App\Models\AppointmentService;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -725,6 +718,51 @@ class StaffTest extends TestCase
         ]);
     }
 
+    // Staff users should be able to update a staff member from their respective business
+    public function test_staff_user_can_update_staff_from_their_business(): void
+    {
+        // Arrange
+        $staffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $targetUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'user_id' => $targetUser->id,
+            'business_id' => $business->id,
+            'position' => 'Beautician',
+        ]);
+
+        // Associate the authenticated staff user with the business.
+        Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $this->actingAs($staffUser, 'sanctum');
+
+        // Act
+        $response = $this->putJson(
+            "/api/businesses/{$business->id}/staff/{$staff->id}",
+            [
+                'position' => 'Senior Beautician',
+            ]
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('staff', [
+            'id' => $staff->id,
+            'position' => 'Senior Beautician',
+        ]);
+    }
+
     // Users should be able to update a staff member from their respective business with partial updates
     public function test_staff_update_supports_partial_updates(): void
     {
@@ -1036,6 +1074,263 @@ class StaffTest extends TestCase
             'id' => $staff->id,
             'business_id' => $businessTwo->id,
             'position' => 'Beautician',
+        ]);
+    }
+
+    /*
+    |==========================================================================
+    | DELETE & AUTHORIZATION TEST CASES
+    |==========================================================================
+    */
+
+    // Super admin should be able to create a staff member for any business
+    public function test_super_admin_can_create_staff(): void
+    {
+        // Arrange
+        $superAdmin = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $this->actingAs($superAdmin, 'sanctum');
+
+        // Act
+        $response = $this->postJson(
+            "/api/businesses/{$business->id}/staff",
+            [
+                'user_id' => $staffUser->id,
+                'phone' => '09171234567',
+                'position' => 'Beautician',
+            ]
+        );
+
+        // Assert
+        $response
+            ->assertStatus(201)
+            ->assertJsonFragment([
+                'user_id' => $staffUser->id,
+                'business_id' => $business->id,
+            ]);
+    }
+
+    // Staff users should not be able to create a staff member for any business
+    public function test_staff_user_cannot_create_staff(): void
+    {
+        // Arrange
+        $staffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $newStaffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $this->actingAs($staffUser, 'sanctum');
+
+        // Act
+        $response = $this->postJson(
+            "/api/businesses/{$business->id}/staff",
+            [
+                'user_id' => $newStaffUser->id,
+                'phone' => '09171234567',
+                'position' => 'Beautician',
+            ]
+        );
+
+        // Assert
+        $response->assertStatus(403);
+    }
+
+    // Staff users should be able to delete a staff member from their respective business
+    public function test_staff_user_can_delete_staff_from_their_business(): void
+    {
+        // Arrange
+        $staffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $targetUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'user_id' => $targetUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $this->actingAs($staffUser, 'sanctum');
+
+        // Act
+        $response = $this->deleteJson(
+            "/api/businesses/{$business->id}/staff/{$staff->id}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $this->assertSoftDeleted('staff', [
+            'id' => $staff->id,
+        ]);
+    }
+
+    // Admin users should not be able to delete a staff member for any business (NOT TESTED)
+    public function test_admin_can_delete_staff_from_their_business(): void
+    {
+        // Arrange
+        $admin = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $admin->businesses()->attach($business->id);
+
+        $staffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $this->actingAs($admin, 'sanctum');
+
+        // Act
+        $response = $this->deleteJson(
+            "/api/businesses/{$business->id}/staff/{$staff->id}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $this->assertSoftDeleted('staff', [
+            'id' => $staff->id,
+        ]);
+    }
+
+    // Super admin users should be able to delete a staff member for any business
+    public function test_super_admin_can_delete_staff(): void
+    {
+        // Arrange
+        $superAdmin = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $this->actingAs($superAdmin, 'sanctum');
+
+        // Act
+        $response = $this->deleteJson(
+            "/api/businesses/{$business->id}/staff/{$staff->id}"
+        );
+
+        // Assert
+        $response
+            ->assertStatus(200)
+            ->assertJson([
+                'message' => 'Staff deleted successfully.',
+            ]);
+
+        $this->assertSoftDeleted('staff', [
+            'id' => $staff->id,
+        ]);
+    }
+
+    // Super admin users should be able to update a staff member for any business
+    public function test_super_admin_can_update_staff_from_any_business(): void
+    {
+        // Arrange
+        $superAdmin = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+            'position' => 'Beautician',
+        ]);
+
+        $this->actingAs($superAdmin, 'sanctum');
+
+        // Act
+        $response = $this->putJson(
+            "/api/businesses/{$business->id}/staff/{$staff->id}",
+            [
+                'position' => 'Senior Beautician',
+            ]
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('staff', [
+            'id' => $staff->id,
+            'position' => 'Senior Beautician',
+        ]);
+    }
+
+    // Super admin users should be able to delete a staff member for any business
+    public function test_super_admin_can_delete_staff_from_any_business(): void
+    {
+        // Arrange
+        $superAdmin = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $this->actingAs($superAdmin, 'sanctum');
+
+        // Act
+        $response = $this->deleteJson(
+            "/api/businesses/{$business->id}/staff/{$staff->id}"
+        );
+
+        // Assert
+        $response->assertStatus(200);
+
+        $this->assertSoftDeleted('staff', [
+            'id' => $staff->id,
         ]);
     }
 }
