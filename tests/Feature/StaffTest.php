@@ -721,7 +721,11 @@ class StaffTest extends TestCase
     // Staff users should be able to update a staff member from their respective business
     public function test_staff_user_can_update_staff_from_their_business(): void
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $staffUser = User::factory()->create([
             'role' => 'staff',
         ]);
@@ -746,7 +750,11 @@ class StaffTest extends TestCase
 
         $this->actingAs($staffUser, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->putJson(
             "/api/businesses/{$business->id}/staff/{$staff->id}",
             [
@@ -754,7 +762,11 @@ class StaffTest extends TestCase
             ]
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $this->assertDatabaseHas('staff', [
@@ -1086,7 +1098,11 @@ class StaffTest extends TestCase
     // Super admin should be able to create a staff member for any business
     public function test_super_admin_can_create_staff(): void
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $superAdmin = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -1099,7 +1115,11 @@ class StaffTest extends TestCase
 
         $this->actingAs($superAdmin, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->postJson(
             "/api/businesses/{$business->id}/staff",
             [
@@ -1109,7 +1129,11 @@ class StaffTest extends TestCase
             ]
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response
             ->assertStatus(201)
             ->assertJsonFragment([
@@ -1121,7 +1145,11 @@ class StaffTest extends TestCase
     // Staff users should not be able to create a staff member for any business
     public function test_staff_user_cannot_create_staff(): void
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $staffUser = User::factory()->create([
             'role' => 'staff',
         ]);
@@ -1134,7 +1162,11 @@ class StaffTest extends TestCase
 
         $this->actingAs($staffUser, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->postJson(
             "/api/businesses/{$business->id}/staff",
             [
@@ -1144,14 +1176,22 @@ class StaffTest extends TestCase
             ]
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(403);
     }
 
     // Staff users should be able to delete a staff member from their respective business
     public function test_staff_user_can_delete_staff_from_their_business(): void
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $staffUser = User::factory()->create([
             'role' => 'staff',
         ]);
@@ -1174,12 +1214,20 @@ class StaffTest extends TestCase
 
         $this->actingAs($staffUser, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->deleteJson(
             "/api/businesses/{$business->id}/staff/{$staff->id}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $this->assertSoftDeleted('staff', [
@@ -1190,7 +1238,11 @@ class StaffTest extends TestCase
     // Admin users should not be able to delete a staff member for any business (NOT TESTED)
     public function test_admin_can_delete_staff_from_their_business(): void
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $admin = User::factory()->create([
             'role' => 'admin',
         ]);
@@ -1210,12 +1262,20 @@ class StaffTest extends TestCase
 
         $this->actingAs($admin, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->deleteJson(
             "/api/businesses/{$business->id}/staff/{$staff->id}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $this->assertSoftDeleted('staff', [
@@ -1226,7 +1286,11 @@ class StaffTest extends TestCase
     // Super admin users should be able to delete a staff member for any business
     public function test_super_admin_can_delete_staff(): void
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $superAdmin = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -1244,12 +1308,20 @@ class StaffTest extends TestCase
 
         $this->actingAs($superAdmin, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->deleteJson(
             "/api/businesses/{$business->id}/staff/{$staff->id}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response
             ->assertStatus(200)
             ->assertJson([
@@ -1264,7 +1336,11 @@ class StaffTest extends TestCase
     // Super admin users should be able to update a staff member for any business
     public function test_super_admin_can_update_staff_from_any_business(): void
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $superAdmin = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -1283,7 +1359,11 @@ class StaffTest extends TestCase
 
         $this->actingAs($superAdmin, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->putJson(
             "/api/businesses/{$business->id}/staff/{$staff->id}",
             [
@@ -1291,7 +1371,11 @@ class StaffTest extends TestCase
             ]
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $this->assertDatabaseHas('staff', [
@@ -1303,7 +1387,11 @@ class StaffTest extends TestCase
     // Super admin users should be able to delete a staff member for any business
     public function test_super_admin_can_delete_staff_from_any_business(): void
     {
-        // Arrange
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
         $superAdmin = User::factory()->create([
             'role' => 'super_admin',
         ]);
@@ -1321,12 +1409,20 @@ class StaffTest extends TestCase
 
         $this->actingAs($superAdmin, 'sanctum');
 
-        // Act
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
         $response = $this->deleteJson(
             "/api/businesses/{$business->id}/staff/{$staff->id}"
         );
 
-        // Assert
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
         $response->assertStatus(200);
 
         $this->assertSoftDeleted('staff', [
