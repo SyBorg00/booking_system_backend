@@ -657,4 +657,385 @@ class StaffTest extends TestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors(['position']);
     }
+
+    /*
+    |==========================================================================
+    | UPDATE & VALIDATION TEST CASES
+    |==========================================================================
+    */
+
+    // Users should be able to update a staff member from their respective business
+    public function test_user_can_update_staff_from_their_business(): void
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $user->businesses()->attach($business->id);
+
+        $staffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+            'phone' => '09171234567',
+            'position' => 'Beautician',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->putJson(
+            "/api/businesses/{$business->id}/staff/{$staff->id}",
+            [
+                'phone' => '09181234567',
+                'position' => 'Senior Beautician',
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response
+            ->assertStatus(200)
+            ->assertJsonFragment([
+                'phone' => '09181234567',
+                'position' => 'Senior Beautician',
+            ]);
+
+        $this->assertDatabaseHas('staff', [
+            'id' => $staff->id,
+            'phone' => '09181234567',
+            'position' => 'Senior Beautician',
+        ]);
+    }
+
+    // Users should be able to update a staff member from their respective business with partial updates
+    public function test_staff_update_supports_partial_updates(): void
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $user->businesses()->attach($business->id);
+
+        $staffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+            'phone' => '09171234567',
+            'position' => 'Beautician',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->putJson(
+            "/api/businesses/{$business->id}/staff/{$staff->id}",
+            [
+                'position' => 'Senior Beautician',
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('staff', [
+            'id' => $staff->id,
+            'phone' => '09171234567',
+            'position' => 'Senior Beautician',
+        ]);
+    }
+
+    // Users should be able to set the phone number of a staff member to null during an update
+    public function test_staff_phone_can_be_set_to_null(): void
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $user->businesses()->attach($business->id);
+
+        $staffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+            'phone' => '09171234567',
+            'position' => 'Beautician',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->putJson(
+            "/api/businesses/{$business->id}/staff/{$staff->id}",
+            [
+                'phone' => null,
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('staff', [
+            'id' => $staff->id,
+            'phone' => null,
+        ]);
+    }
+
+    // Users should not be able to update a staff member with a non-existent user_id
+    public function test_staff_update_rejects_nonexistent_user_id(): void
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $user->businesses()->attach($business->id);
+
+        $staffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $nonExistentUserId = User::max('id') + 1;
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->putJson(
+            "/api/businesses/{$business->id}/staff/{$staff->id}",
+            [
+                'user_id' => $nonExistentUserId,
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['user_id']);
+    }
+
+    // Users should not be able to update a staff member with an invalid phone format
+    public function test_staff_update_rejects_invalid_phone(): void
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $user->businesses()->attach($business->id);
+
+        $staffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->putJson(
+            "/api/businesses/{$business->id}/staff/{$staff->id}",
+            [
+                'phone' => 123456789,
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['phone']);
+    }
+
+    // Users should not be able to update a staff member with a position that exceeds the max length
+    public function test_staff_update_rejects_position_over_max_length(): void
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $user->businesses()->attach($business->id);
+
+        $staffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->putJson(
+            "/api/businesses/{$business->id}/staff/{$staff->id}",
+            [
+                'position' => str_repeat('A', 101),
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['position']);
+    }
+
+    // Users should not be able to update a staff member from another business
+    public function test_user_cannot_update_staff_from_another_business(): void
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $businessOne = Business::factory()->create();
+        $businessTwo = Business::factory()->create();
+
+        $user->businesses()->attach($businessOne->id);
+
+        $staffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'user_id' => $staffUser->id,
+            'business_id' => $businessTwo->id,
+            'phone' => '09171234567',
+            'position' => 'Beautician',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->putJson(
+            "/api/businesses/{$businessOne->id}/staff/{$staff->id}",
+            [
+                'position' => 'Senior Beautician',
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(404);
+
+        $this->assertDatabaseHas('staff', [
+            'id' => $staff->id,
+            'business_id' => $businessTwo->id,
+            'position' => 'Beautician',
+        ]);
+    }
 }
