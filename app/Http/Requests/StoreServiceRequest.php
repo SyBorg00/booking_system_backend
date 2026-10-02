@@ -24,7 +24,6 @@ class StoreServiceRequest extends FormRequest
     {
         return [
             'name' => [
-                'sometimes',
                 'required',
                 'string',
                 'max:255',
