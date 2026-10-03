@@ -25,7 +25,7 @@ class AppointmentTest extends TestCase
     */
 
     //This is to test a normal appointment creation flow
-    public function test_user_can_create_appointment(): void
+    public function test_user_can_create_appointment()
     {
         /*
         |---------------------------------------------
@@ -124,7 +124,7 @@ class AppointmentTest extends TestCase
     }
 
     //This is to test that a user cannot create an appointment past the current date
-    public function test_cannot_create_past_appointment(): void
+    public function test_cannot_create_past_appointment()
     {
         /*
         |---------------------------------------------
@@ -195,7 +195,7 @@ class AppointmentTest extends TestCase
     }
 
     //This is to test that that a staff w/ no assigned service cannot create an appointment w/ said specified service
-    public function test_cannot_create_appointment_with_unassigned_service(): void
+    public function test_cannot_create_appointment_with_unassigned_service()
     {
         /*
         |---------------------------------------------
@@ -279,7 +279,7 @@ class AppointmentTest extends TestCase
     }
 
     //This is to test that a user cannot create an appointment with a staff member from another business
-    public function test_cannot_create_appointment_with_staff_from_another_business(): void
+    public function test_cannot_create_appointment_with_staff_from_another_business()
     {
         /*
         |---------------------------------------------
@@ -357,7 +357,7 @@ class AppointmentTest extends TestCase
     }
 
     //This is to test that a user cannot create an appointment that conflicts with an existing appointment for the same staff member
-    public function test_cannot_create_conflicting_appointment(): void
+    public function test_cannot_create_conflicting_appointment()
     {
         /*
         |---------------------------------------------
@@ -449,7 +449,7 @@ class AppointmentTest extends TestCase
     }
 
     //This is to test that when an appointment is cancelled, the time slot is released and can be booked again
-    public function test_cancelled_appointment_releases_time_slot(): void
+    public function test_cancelled_appointment_releases_time_slot()
     {
         /*
         |---------------------------------------------
@@ -556,7 +556,7 @@ class AppointmentTest extends TestCase
     }
 
     //This is to test that a user can confirm a pending appointment
-    public function test_can_confirm_pending_appointment(): void
+    public function test_can_confirm_pending_appointment()
     {
         /*
         |---------------------------------------------
@@ -656,7 +656,7 @@ class AppointmentTest extends TestCase
     }
 
     //This is to test that a user can complete a confirmed appointment
-    public function test_can_complete_confirmed_appointment(): void
+    public function test_can_complete_confirmed_appointment()
     {
         /*
         |---------------------------------------------
@@ -765,7 +765,7 @@ class AppointmentTest extends TestCase
     }
 
     //This is to test that a user can cancel a confirmed appointment
-    public function test_can_cancel_confirmed_appointment(): void
+    public function test_can_cancel_confirmed_appointment()
     {
         /*
         |---------------------------------------------
@@ -875,7 +875,7 @@ class AppointmentTest extends TestCase
     }
 
     //This is to test that a user can mark a confirmed appointment as no-show
-    public function test_can_mark_confirmed_appointment_as_no_show(): void
+    public function test_can_mark_confirmed_appointment_as_no_show()
     {
         /*
         |---------------------------------------------
@@ -985,7 +985,7 @@ class AppointmentTest extends TestCase
     }
 
     //This is to test that a user cannot transition an appointment's current status to an invalid status (e.g., from completed back to confirmed)
-    public function test_rejects_invalid_status_transition(): void
+    public function test_rejects_invalid_status_transition()
     {
         /*
         |---------------------------------------------
@@ -4002,9 +4002,9 @@ class AppointmentTest extends TestCase
     | APPOINTMENT RESCHEDULE() API TESTS
     |==========================================================================
     */
-    
+
     //This is to test that a user can reschedule an existing appointment to a new valid time slot
-    public function test_can_reschedule_appointment(): void
+    public function test_can_reschedule_appointment()
     {
         /*
         |---------------------------------------------
@@ -4135,7 +4135,7 @@ class AppointmentTest extends TestCase
     }
 
     //This is to test that a user cannot reschedule an existing appointment to a past time slot
-    public function test_cannot_reschedule_appointment_to_past(): void
+    public function test_cannot_reschedule_appointment_to_past()
     {
         /*
         |---------------------------------------------
@@ -4234,7 +4234,7 @@ class AppointmentTest extends TestCase
     }
 
     //This is to test that a user cannot reschedule an existing appointment to a time slot that conflicts with another appointment for the same staff member
-    public function test_cannot_reschedule_appointment_to_conflicting_slot(): void
+    public function test_cannot_reschedule_appointment_to_conflicting_slot()
     {
         /*
         |---------------------------------------------
@@ -4358,7 +4358,7 @@ class AppointmentTest extends TestCase
 
     // This is to test that a user can reschedule an existing appointment to a different staff member,
     // provided the new staff member is available and provides the service.
-    public function test_can_reschedule_appointment_to_different_staff(): void
+    public function test_can_reschedule_appointment_to_different_staff()
     {
         /*
         |--------------------------------------------------------------------------
@@ -4489,7 +4489,7 @@ class AppointmentTest extends TestCase
     }
 
     // This is to test that a user cannot reschedule an existing appointment to a different staff member who does not provide the service.
-    public function test_cannot_reschedule_appointment_to_staff_without_service(): void
+    public function test_cannot_reschedule_appointment_to_staff_without_service()
     {
         /*
         |--------------------------------------------------------------------------
@@ -4601,7 +4601,7 @@ class AppointmentTest extends TestCase
     }
 
     // This is to test that a user cannot reschedule an existing appointment to a staff member from a different business.
-    public function test_cannot_reschedule_appointment_to_staff_from_another_business(): void
+    public function test_cannot_reschedule_appointment_to_staff_from_another_business()
     {
         /*
         |--------------------------------------------------------------------------
@@ -4718,7 +4718,7 @@ class AppointmentTest extends TestCase
     }
 
     // This is to test that a user can reschedule an existing appointment without changing the staff member.
-    public function test_can_reschedule_appointment_without_changing_staff(): void
+    public function test_can_reschedule_appointment_without_changing_staff()
     {
         /*
         |--------------------------------------------------------------------------
@@ -4833,7 +4833,7 @@ class AppointmentTest extends TestCase
     }
 
     // This is to test that a user cannot reschedule an existing appointment if they belong to a different business than the appointment's business.
-    public function test_cannot_reschedule_appointment_from_another_business(): void
+    public function test_cannot_reschedule_appointment_from_another_business()
     {
         /*
         |--------------------------------------------------------------------------
@@ -4943,7 +4943,7 @@ class AppointmentTest extends TestCase
     }
 
     // This is to test that a staff user cannot reschedule an existing appointment if they belong to a different business than the appointment's business.
-    public function test_staff_user_cannot_reschedule_appointment_from_another_business(): void
+    public function test_staff_user_cannot_reschedule_appointment_from_another_business()
     {
         /*
         |--------------------------------------------------------------------------
@@ -5055,7 +5055,7 @@ class AppointmentTest extends TestCase
     }
 
     // This is to test that an unauthenticated user cannot reschedule an existing appointment.
-    public function test_unauthenticated_user_cannot_reschedule_appointment(): void
+    public function test_unauthenticated_user_cannot_reschedule_appointment()
     {
         /*
         |--------------------------------------------------------------------------
@@ -5149,7 +5149,7 @@ class AppointmentTest extends TestCase
     }
 
     // This is to test that a user cannot reschedule an existing appointment without providing a new start_datetime.
-    public function test_cannot_reschedule_appointment_without_start_datetime(): void
+    public function test_cannot_reschedule_appointment_without_start_datetime()
     {
         /*
         |--------------------------------------------------------------------------
@@ -5244,7 +5244,7 @@ class AppointmentTest extends TestCase
     }
 
     // This is to test that a user cannot reschedule an existing appointment to a staff member who does not exist.
-    public function test_cannot_reschedule_appointment_with_invalid_staff_id(): void
+    public function test_cannot_reschedule_appointment_with_invalid_staff_id()
     {
         /*
         |--------------------------------------------------------------------------
@@ -5349,7 +5349,7 @@ class AppointmentTest extends TestCase
     }
 
     // This is to test that a user cannot reschedule an existing appointment with an invalid start_datetime format.
-    public function test_cannot_reschedule_appointment_with_invalid_start_datetime(): void
+    public function test_cannot_reschedule_appointment_with_invalid_start_datetime()
     {
         /*
         |--------------------------------------------------------------------------
@@ -6018,4 +6018,449 @@ class AppointmentTest extends TestCase
             $appointment->end_datetime->toDateTimeString()
         );
     }
+
+    /*
+    |==========================================================================
+    | APPOINTMENT FINAL REGRESSION AND EDGE TESTS CASES
+    |==========================================================================
+    */
+
+    // This is to test that a user cannot create an appointment without providing any services.
+    public function test_cannot_create_appointment_without_services()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $user->businesses()->attach($business->id);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $date = Carbon::tomorrow()->setTime(9, 0);
+
+        // Act
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/appointments', [
+                'business_id' => $business->id,
+                'customer_id' => $customer->id,
+                'staff_id' => $staff->id,
+                'start_datetime' => $date->toDateTimeString(),
+            ]);
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['services']);
+    }
+
+    // This is to test that a user cannot create an appointment with an empty services array.
+    public function test_cannot_create_appointment_with_empty_services_array()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $user->businesses()->attach($business->id);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $date = Carbon::tomorrow()->setTime(9, 0);
+
+        // Act
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/appointments', [
+                'business_id' => $business->id,
+                'customer_id' => $customer->id,
+                'staff_id' => $staff->id,
+                'start_datetime' => $date->toDateTimeString(),
+                'services' => [],
+            ]);
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['services']);
+    }
+
+    // This is to test that a user cannot create an appointment with duplicate service IDs in the services array.
+    public function test_cannot_create_appointment_with_duplicate_service_ids()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $user->businesses()->attach($business->id);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'status' => 'active',
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $date = Carbon::tomorrow()->setTime(9, 0);
+
+        // Act
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/appointments', [
+                'business_id' => $business->id,
+                'customer_id' => $customer->id,
+                'staff_id' => $staff->id,
+                'start_datetime' => $date->toDateTimeString(),
+                'services' => [
+                    ['service_id' => $service->id],
+                    ['service_id' => $service->id],
+                ],
+            ]);
+
+        // Assert
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors([
+            'services.1.service_id',
+        ]);
+    }
+
+    // This is to test that a user cannot create an appointment with a customer that belongs to another business.
+    public function test_cannot_create_appointment_with_customer_from_another_business()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $businessOne = Business::factory()->create();
+        $businessTwo = Business::factory()->create();
+
+        $user->businesses()->attach($businessOne->id);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $businessTwo->id,
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $businessOne->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $businessOne->id,
+            'status' => 'active',
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $date = Carbon::tomorrow()->setTime(9, 0);
+
+        // Act
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/appointments', [
+                'business_id' => $businessOne->id,
+                'customer_id' => $customer->id,
+                'staff_id' => $staff->id,
+                'start_datetime' => $date->toDateTimeString(),
+                'services' => [
+                    ['service_id' => $service->id],
+                ],
+            ]);
+
+        // Assert
+        $response->assertStatus(422);
+    }
+
+    // This is to test that a user cannot create an appointment with a service that belongs to another business.
+    public function test_cannot_create_appointment_with_service_from_another_business()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $businessOne = Business::factory()->create();
+        $businessTwo = Business::factory()->create();
+
+        $user->businesses()->attach($businessOne->id);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $businessOne->id,
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $businessOne->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $businessTwo->id,
+            'status' => 'active',
+        ]);
+
+        $date = Carbon::tomorrow()->setTime(9, 0);
+
+        // Act
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/appointments', [
+                'business_id' => $businessOne->id,
+                'customer_id' => $customer->id,
+                'staff_id' => $staff->id,
+                'start_datetime' => $date->toDateTimeString(),
+                'services' => [
+                    ['service_id' => $service->id],
+                ],
+            ]);
+
+        // Assert
+        $response->assertStatus(422);
+    }
+
+    // This is to test that a user cannot create an appointment with a staff member who does not provide the requested service.
+    public function test_cannot_create_appointment_when_staff_does_not_provide_service()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $user->businesses()->attach($business->id);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'status' => 'active',
+        ]);
+
+        $date = Carbon::tomorrow()->setTime(9, 0);
+
+        // Act
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/appointments', [
+                'business_id' => $business->id,
+                'customer_id' => $customer->id,
+                'staff_id' => $staff->id,
+                'start_datetime' => $date->toDateTimeString(),
+                'services' => [
+                    ['service_id' => $service->id],
+                ],
+            ]);
+
+        // Assert
+        $response->assertStatus(422);
+    }
+
+    // This is to test that a user can create an appointment and the appointment service snapshot preserves the service values at the time of booking.
+    public function test_appointment_service_snapshot_preserves_service_values()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $business = Business::factory()->create([
+            'currency' => 'PHP',
+        ]);
+
+        $user->businesses()->attach($business->id);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'price' => 850,
+            'duration_minutes' => 45,
+            'buffer_minutes' => 15,
+            'status' => 'active',
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $staffDate = Carbon::tomorrow();
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $staffDate->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $date = $staffDate->copy()->setTime(9, 0);
+
+        // Act
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/appointments', [
+                'business_id' => $business->id,
+                'customer_id' => $customer->id,
+                'staff_id' => $staff->id,
+                'start_datetime' => $date->toDateTimeString(),
+                'services' => [
+                    ['service_id' => $service->id],
+                ],
+            ]);
+
+        // Assert
+        $response->assertStatus(201);
+
+        $appointmentId = $response->json('data.id');
+
+        $this->assertDatabaseHas('appointment_services', [
+            'appointment_id' => $appointmentId,
+            'service_id' => $service->id,
+            'price' => 850,
+            'currency' => 'PHP',
+            'duration_minutes' => 45,
+            'buffer_minutes' => 15,
+        ]);
+    }
+
+    // This is to test that a user can create an appointment and the appointment end time includes the service buffer.
+    public function test_appointment_end_time_includes_service_buffer()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $user->businesses()->attach($business->id);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+            'status' => 'active',
+        ]);
+
+        $staff->services()->attach($service->id);
+        $staffDate = Carbon::tomorrow();
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $staffDate->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $date = $staffDate->copy()->setTime(9, 0);
+        $expectedEnd = $date->copy()->addMinutes(45);
+
+        // Act
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/appointments', [
+                'business_id' => $business->id,
+                'customer_id' => $customer->id,
+                'staff_id' => $staff->id,
+                'start_datetime' => $date->toDateTimeString(),
+                'services' => [
+                    ['service_id' => $service->id],
+                ],
+            ]);
+
+        // Assert
+        $response->assertStatus(201);
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $response->json('data.id'),
+            'start_datetime' => $date->toDateTimeString(),
+            'end_datetime' => $expectedEnd->toDateTimeString(),
+        ]);
+    }
+
+    // This is to test that a failed appointment creation does not create any appointment records in the database.
+    public function test_failed_appointment_creation_does_not_create_appointment_record()
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $user->businesses()->attach($business->id);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'status' => 'active',
+        ]);
+
+        // Staff is intentionally NOT assigned to the service.
+
+        $date = Carbon::tomorrow()->setTime(9, 0);
+
+        // Act
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/appointments', [
+                'business_id' => $business->id,
+                'customer_id' => $customer->id,
+                'staff_id' => $staff->id,
+                'start_datetime' => $date->toDateTimeString(),
+                'services' => [
+                    ['service_id' => $service->id],
+                ],
+            ]);
+
+        // Assert
+        $response->assertStatus(422);
+
+        $this->assertDatabaseCount('appointments', 0);
+        $this->assertDatabaseCount('appointment_services', 0);
+    }
+
+
 }
