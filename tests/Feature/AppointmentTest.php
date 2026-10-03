@@ -481,24 +481,24 @@ class AppointmentTest extends TestCase
 
         $staff->services()->attach($service->id);
 
+        $staffDate = Carbon::tomorrow();
+
         StaffHour::factory()->create([
             'staff_id' => $staff->id,
-            'day_of_week' => 4,
+            'day_of_week' => $staffDate->dayOfWeek,
             'start_time' => '09:00',
             'end_time' => '17:00',
             'is_off' => false,
         ]);
 
-        $appointmentDate = Carbon::now()
-            ->next(Carbon::THURSDAY)
-            ->setTime(9, 0);
+        $appointmentDate = $staffDate->copy()->setTime(9, 0);
 
         // Create the first appointment
         $firstResponse = $this->postJson('/api/appointments', [
             'business_id' => $business->id,
             'customer_id' => $customer->id,
             'staff_id' => $staff->id,
-            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
+            'start_datetime' => $appointmentDate->toDateTimeString(),
             'services' => [
                 ['service_id' => $service->id],
             ],
@@ -537,7 +537,7 @@ class AppointmentTest extends TestCase
             'business_id' => $business->id,
             'customer_id' => $customer->id,
             'staff_id' => $staff->id,
-            'start_datetime' => '2026-10-01 09:00:00',
+            'start_datetime' => $appointmentDate->toDateTimeString(),
             'services' => [
                 ['service_id' => $service->id],
             ],
@@ -1444,9 +1444,13 @@ class AppointmentTest extends TestCase
             $customer->id
         );
 
-        $response->assertJsonMissing([
-            'id' => $otherAppointment->id,
-        ]);
+        $ids = collect($response->json('data'))
+            ->pluck('id');
+
+        $this->assertNotContains(
+            $otherAppointment->id,
+            $ids
+        );
     }
 
     // This is to test that the appointment index endpoint can filter appointments by status.
@@ -1553,9 +1557,13 @@ class AppointmentTest extends TestCase
             'confirmed'
         );
 
-        $response->assertJsonMissing([
-            'id' => $otherAppointment->id,
-        ]);
+        $ids = collect($response->json('data'))
+            ->pluck('id');
+
+        $this->assertNotContains(
+            $otherAppointment->id,
+            $ids
+        );
     }
 
     // This is to test that the appointment index endpoint can filter appointments by date.
@@ -1660,9 +1668,13 @@ class AppointmentTest extends TestCase
             $appointment->id
         );
 
-        $response->assertJsonMissing([
-            'id' => $otherAppointment->id,
-        ]);
+        $ids = collect($response->json('data'))
+        ->pluck('id');
+
+        $this->assertNotContains(
+            $otherAppointment->id,
+            $ids
+        );
     }
 
     // This is to test that the appointment index endpoint rejects invalid status values.
@@ -2154,13 +2166,18 @@ class AppointmentTest extends TestCase
             $matchingAppointment->id
         );
 
-        $response->assertJsonMissing([
-            'id' => $differentCustomerAppointment->id,
-        ]);
+        $ids = collect($response->json('data'))
+            ->pluck('id');
 
-        $response->assertJsonMissing([
-            'id' => $differentStatusAppointment->id,
-        ]);
+        $this->assertNotContains(
+            $differentCustomerAppointment->id,
+            $ids
+        );
+
+        $this->assertNotContains(
+            $differentStatusAppointment->id,
+            $ids
+        );
     }
 
     // This is to test that the appointment index endpoint returns empty data when a staff member has no matching appointments.

@@ -1133,28 +1133,19 @@ class AvailabilityTest extends TestCase
         |--------------------------------------------------------------------------
         */
         $response->assertStatus(200);
-
+       
         $slots = $response->json('available_slots');
 
         $this->assertNotEmpty($slots);
 
         $matchingSlotExists = false;
 
-        foreach ($slots as $slot) {
-            $start = Carbon::parse($slot['start']);
-            $end = Carbon::parse($slot['end']);
-
-            if (
-                $start->equalTo($appointmentStart)
-                && $end->equalTo($appointmentEnd)
-            ) {
-                $matchingSlotExists = true;
-                break;
-            }
-        }
-
-        $this->assertTrue(
-            $matchingSlotExists,
+        $this->assertContains(
+            [
+                'start' => $appointmentStart->format('H:i'),
+                'end' => $appointmentEnd->format('H:i'),
+            ],
+            $slots,
             'The cancelled appointment time should be available.'
         );
     }
