@@ -1097,2028 +1097,6 @@ class AppointmentTest extends TestCase
         ]);
     }
 
-    //This is to test that a user can reschedule an existing appointment to a new valid time slot
-    public function test_can_reschedule_appointment(): void
-    {
-        /*
-        |---------------------------------------------
-        | CREATE
-        |---------------------------------------------
-        */
-        $business = Business::factory()->create();
-
-        $user = User::factory()->create([
-            'role' => 'super_admin',
-        ]);
-
-        $this->actingAs($user, 'sanctum');
-
-        $staff = Staff::factory()->create([
-            'business_id' => $business->id,
-            'user_id' => $user->id,
-        ]);
-
-        $customer = Customer::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $service = Service::factory()->create([
-            'business_id' => $business->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-
-        $staff->services()->attach($service->id);
-
-        StaffHour::factory()->create([
-            'staff_id' => $staff->id,
-            'day_of_week' => 4,
-            'start_time' => '09:00',
-            'end_time' => '17:00',
-            'is_off' => false,
-        ]);
-
-        //dynamic date
-        $appointmentDate = Carbon::now()
-            ->next(Carbon::THURSDAY)
-            ->setTime(9, 0);
-
-        //dynamic reschedule date
-        $rescheduleDate = $appointmentDate
-            ->copy()
-            ->setTime(10, 0);
-
-        // Create original appointment
-        $createResponse = $this->postJson('/api/appointments', [
-            'business_id' => $business->id,
-            'customer_id' => $customer->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
-            'services' => [
-                ['service_id' => $service->id],
-            ],
-            'notes' => 'Reschedule test',
-        ]);
-
-        $createResponse->assertStatus(201);
-
-        $appointment = Appointment::latest('id')->first();
-
-        $this->assertNotNull($appointment);
-
-        // Original appointment should occupy 09:00 -> 09:45 (30 mins service + 15 mins buffer)
-        $this->assertEquals(
-            $appointmentDate->format('Y-m-d H:i:s'),
-            $appointment->start_datetime->format('Y-m-d H:i:s')
-        );
-
-        $expectedOriginalEnd = $appointmentDate
-            ->copy()
-            ->addMinutes(45);
-
-        $this->assertEquals(
-            $expectedOriginalEnd->format('Y-m-d H:i:s'),
-            $appointment->end_datetime->format('Y-m-d H:i:s')
-        );
-
-        /*
-        |---------------------------------------------
-        | TEST
-        |---------------------------------------------
-        */
-        //reschedule to 10:00
-        $response = $this->patchJson(
-            "/api/appointments/{$appointment->id}/reschedule",
-            [
-                'start_datetime' => $rescheduleDate->format('Y-m-d H:i:s'),
-            ]
-        );
-
-        /*
-        |---------------------------------------------
-        | ASSERT
-        |---------------------------------------------
-        */
-        $response->assertStatus(200);
-
-        $response->assertJson([
-            'message' => 'Appointment rescheduled successfully.',
-        ]);
-
-        $expectedRescheduleEnd = $rescheduleDate
-            ->copy()
-            ->addMinutes(45);
-
-        $this->assertDatabaseHas(
-            'appointments',
-            [
-                'id' => $appointment->id,
-                'staff_id' => $staff->id,
-                'start_datetime' => $rescheduleDate->format('Y-m-d H:i:s'),
-                'end_datetime' => $expectedRescheduleEnd->format('Y-m-d H:i:s'),
-            ]
-        );
-
-        // Ensure the appointment services were preserved
-        $this->assertDatabaseHas('appointment_services', [
-            'appointment_id' => $appointment->id,
-            'service_id' => $service->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-    }
-
-    /*
-    |==========================================================================
-    | APPOINTMENT RESCHEDULE() API TESTS
-    |==========================================================================
-    */
-
-    //This is to test that a user cannot reschedule an existing appointment to a past time slot
-    public function test_cannot_reschedule_appointment_to_past(): void
-    {
-        /*
-        |---------------------------------------------
-        | CREATE
-        |---------------------------------------------
-        */
-        $business = Business::factory()->create();
-
-        $user = User::factory()->create([
-            'role' => 'super_admin',
-        ]);
-
-        $this->actingAs($user, 'sanctum');
-
-        $staff = Staff::factory()->create([
-            'business_id' => $business->id,
-            'user_id' => $user->id,
-        ]);
-
-        $customer = Customer::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $service = Service::factory()->create([
-            'business_id' => $business->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-
-        $staff->services()->attach($service->id);
-
-        $appointmentDate = Carbon::now()
-            ->next(Carbon::THURSDAY)
-            ->setTime(9, 0);
-
-        StaffHour::factory()->create([
-            'staff_id' => $staff->id,
-            'day_of_week' => $appointmentDate->dayOfWeek,
-            'start_time' => '09:00',
-            'end_time' => '17:00',
-            'is_off' => false,
-        ]);
-
-        // Create a valid future appointment
-        $createResponse = $this->postJson('/api/appointments', [
-            'business_id' => $business->id,
-            'customer_id' => $customer->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
-            'services' => [
-                ['service_id' => $service->id],
-            ],
-            'notes' => 'Past reschedule test',
-        ]);
-
-        $createResponse->assertStatus(201);
-
-        $appointment = Appointment::latest('id')->first();
-
-        $this->assertNotNull($appointment);
-
-        // Create a dynamically generated past date
-        $pastDate = Carbon::now()
-            ->subDay()
-            ->setTime(9, 0);
-
-        /*
-        |---------------------------------------------
-        | TEST
-        |---------------------------------------------
-        */
-        // attempt to reschedule into the past
-        $response = $this->patchJson(
-            "/api/appointments/{$appointment->id}/reschedule",
-            [
-                'start_datetime' => $pastDate->format('Y-m-d H:i:s'),
-            ]
-        );
-
-        /*
-        |---------------------------------------------
-        | ASSERT
-        |---------------------------------------------
-        */
-        $response->assertStatus(422);
-
-        $response->assertJsonValidationErrors([
-            'start_datetime',
-        ]);
-
-        // Ensure the original appointment was not changed
-        $this->assertDatabaseHas('appointments', [
-            'id' => $appointment->id,
-            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
-        ]);
-    }
-
-    //This is to test that a user cannot reschedule an existing appointment to a time slot that conflicts with another appointment for the same staff member
-    public function test_cannot_reschedule_appointment_to_conflicting_slot(): void
-    {
-        /*
-        |---------------------------------------------
-        | CREATE
-        |---------------------------------------------
-        */
-        $user = User::factory()->create([
-            'role' => 'super_admin',
-        ]);
-
-        $business = Business::factory()->create();
-
-        $staff = Staff::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $customer = Customer::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $service = Service::factory()->create([
-            'business_id' => $business->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-
-        $staff->services()->attach($service->id);
-
-        $appointmentDate = Carbon::now()
-            ->next(Carbon::THURSDAY)
-            ->setTime(9, 0);
-
-        StaffHour::create([
-            'staff_id' => $staff->id,
-            'day_of_week' => $appointmentDate->dayOfWeek,
-            'start_time' => '09:00:00',
-            'end_time' => '17:00:00',
-            'is_off' => false,
-        ]);
-
-        // First appointment: 09:00 - 09:45
-        $firstAppointment = Appointment::create([
-            'business_id' => $business->id,
-            'customer_id' => $customer->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $appointmentDate,
-            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
-            'status' => 'pending',
-        ]);
-
-        AppointmentService::create([
-            'appointment_id' => $firstAppointment->id,
-            'service_id' => $service->id,
-            'price' => $service->price,
-            'currency' => $business->currency,
-            'duration_minutes' => $service->duration_minutes,
-            'buffer_minutes' => $service->buffer_minutes,
-        ]);
-
-        // Second appointment: 10:00 - 10:45
-        $secondAppointmentStart = $appointmentDate
-            ->copy()
-            ->setTime(10, 0);
-
-        $secondAppointment = Appointment::create([
-            'business_id' => $business->id,
-            'customer_id' => $customer->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $secondAppointmentStart,
-            'end_datetime' => $secondAppointmentStart->copy()->addMinutes(45),
-            'status' => 'pending',
-        ]);
-
-        AppointmentService::create([
-            'appointment_id' => $secondAppointment->id,
-            'service_id' => $service->id,
-            'price' => $service->price,
-            'currency' => $business->currency,
-            'duration_minutes' => $service->duration_minutes,
-            'buffer_minutes' => $service->buffer_minutes,
-        ]);
-
-        $this->actingAs($user, 'sanctum');
-
-        /*
-        |---------------------------------------------
-        | TEST
-        |---------------------------------------------
-        */
-        // Try to move the second appointment into the first appointment's time.
-        $conflictingStart = $appointmentDate
-            ->copy()
-            ->setTime(9, 15);
-
-        $response = $this->patchJson(
-            "/api/appointments/{$secondAppointment->id}/reschedule",
-            [
-                'start_datetime' => $conflictingStart->format('Y-m-d H:i:s'),
-            ]
-        );
-
-        /*
-        |---------------------------------------------
-        | ASSERT
-        |---------------------------------------------
-        */
-        $response->assertStatus(422);
-
-        $response->assertJson(['message' => 'The selected time conflicts with another appointment.',]);
-
-        // The second appointment should remain at its original time.
-        $this->assertDatabaseHas('appointments', [
-            'id' => $secondAppointment->id,
-            'start_datetime' => $secondAppointmentStart->format('Y-m-d H:i:s'),
-            'end_datetime' => $secondAppointmentStart
-                ->copy()
-                ->addMinutes(45)
-                ->format('Y-m-d H:i:s'),
-        ]);
-    }
-
-    // This is to test that a user can reschedule an existing appointment to a different staff member,
-    // provided the new staff member is available and provides the service.
-    public function test_can_reschedule_appointment_to_different_staff(): void
-    {
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE
-        |--------------------------------------------------------------------------
-        */
-        $user = User::factory()->create([
-            'role' => 'super_admin',
-        ]);
-
-        $business = Business::factory()->create();
-
-        //two staff members for the same business
-        $originalStaff = Staff::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $newStaff = Staff::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $customer = Customer::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $service = Service::factory()->create([
-            'business_id' => $business->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-
-        // Both staff members provide the service.
-        $originalStaff->services()->attach($service->id);
-        $newStaff->services()->attach($service->id);
-
-        $appointmentDate = Carbon::now()
-            ->next(Carbon::THURSDAY)
-            ->setTime(9, 0);
-
-        // Original staff works on this day.
-        StaffHour::create([
-            'staff_id' => $originalStaff->id,
-            'day_of_week' => $appointmentDate->dayOfWeek,
-            'start_time' => '09:00:00',
-            'end_time' => '17:00:00',
-            'is_off' => false,
-        ]);
-
-        // New staff also works on this day.
-        StaffHour::create([
-            'staff_id' => $newStaff->id,
-            'day_of_week' => $appointmentDate->dayOfWeek,
-            'start_time' => '09:00:00',
-            'end_time' => '17:00:00',
-            'is_off' => false,
-        ]);
-
-        // Create the original appointment.
-        $appointment = Appointment::create([
-            'business_id' => $business->id,
-            'customer_id' => $customer->id,
-            'staff_id' => $originalStaff->id,
-            'start_datetime' => $appointmentDate,
-            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
-            'status' => 'pending',
-        ]);
-
-        AppointmentService::create([
-            'appointment_id' => $appointment->id,
-            'service_id' => $service->id,
-            'price' => $service->price,
-            'currency' => $business->currency,
-            'duration_minutes' => $service->duration_minutes,
-            'buffer_minutes' => $service->buffer_minutes,
-        ]);
-
-        $this->actingAs($user, 'sanctum');
-
-        /*
-        |--------------------------------------------------------------------------
-        | TEST
-        |--------------------------------------------------------------------------
-        */
-        $newStart = $appointmentDate
-            ->copy()
-            ->setTime(10, 0);
-
-        $response = $this->patchJson(
-            "/api/appointments/{$appointment->id}/reschedule",
-            [
-                'staff_id' => $newStaff->id,
-                'start_datetime' => $newStart->format('Y-m-d H:i:s'),
-            ]
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | ASSERT
-        |--------------------------------------------------------------------------
-        */
-        $response->assertStatus(200);
-
-        $response->assertJson([
-            'message' => 'Appointment rescheduled successfully.',
-            'data' => [
-                'id' => $appointment->id,
-                'staff_id' => $newStaff->id,
-            ],
-        ]);
-
-        $this->assertDatabaseHas('appointments', [
-            'id' => $appointment->id,
-            'staff_id' => $newStaff->id,
-            'start_datetime' => $newStart->format('Y-m-d H:i:s'),
-            'end_datetime' => $newStart
-                ->copy()
-                ->addMinutes(45)
-                ->format('Y-m-d H:i:s'),
-        ]);
-
-        // The appointment service snapshot should remain unchanged.
-        $this->assertDatabaseHas('appointment_services', [
-            'appointment_id' => $appointment->id,
-            'service_id' => $service->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-    }
-
-    // This is to test that a user cannot reschedule an existing appointment to a different staff member who does not provide the service.
-    public function test_cannot_reschedule_appointment_to_staff_without_service(): void
-    {
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE
-        |--------------------------------------------------------------------------
-        */
-        $user = User::factory()->create([
-            'role' => 'super_admin',
-        ]);
-
-        $business = Business::factory()->create();
-
-        $originalStaff = Staff::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $newStaff = Staff::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $customer = Customer::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $service = Service::factory()->create([
-            'business_id' => $business->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-
-        // Only the original staff provides the service.
-        $originalStaff->services()->attach($service->id);
-
-        $appointmentDate = Carbon::now()
-            ->next(Carbon::THURSDAY)
-            ->setTime(9, 0);
-
-        // Both staff members are working on this day.
-        StaffHour::create([
-            'staff_id' => $originalStaff->id,
-            'day_of_week' => $appointmentDate->dayOfWeek,
-            'start_time' => '09:00:00',
-            'end_time' => '17:00:00',
-            'is_off' => false,
-        ]);
-
-        StaffHour::create([
-            'staff_id' => $newStaff->id,
-            'day_of_week' => $appointmentDate->dayOfWeek,
-            'start_time' => '09:00:00',
-            'end_time' => '17:00:00',
-            'is_off' => false,
-        ]);
-
-        $appointment = Appointment::create([
-            'business_id' => $business->id,
-            'customer_id' => $customer->id,
-            'staff_id' => $originalStaff->id,
-            'start_datetime' => $appointmentDate,
-            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
-            'status' => 'pending',
-        ]);
-
-        AppointmentService::create([
-            'appointment_id' => $appointment->id,
-            'service_id' => $service->id,
-            'price' => $service->price,
-            'currency' => $business->currency,
-            'duration_minutes' => $service->duration_minutes,
-            'buffer_minutes' => $service->buffer_minutes,
-        ]);
-
-        $this->actingAs($user, 'sanctum');
-
-        /*
-        |--------------------------------------------------------------------------
-        | TEST
-        |--------------------------------------------------------------------------
-        */
-        $newStart = $appointmentDate
-            ->copy()
-            ->setTime(10, 0);
-
-        $response = $this->patchJson(
-            "/api/appointments/{$appointment->id}/reschedule",
-            [
-                'staff_id' => $newStaff->id,
-                'start_datetime' => $newStart->format('Y-m-d H:i:s'),
-            ]
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | ASSERT
-        |--------------------------------------------------------------------------
-        */
-        $response->assertStatus(422);
-
-        // The appointment should not be moved to the incompatible staff member.
-        $this->assertDatabaseHas('appointments', [
-            'id' => $appointment->id,
-            'staff_id' => $originalStaff->id,
-            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
-            'end_datetime' => $appointmentDate
-                ->copy()
-                ->addMinutes(45)
-                ->format('Y-m-d H:i:s'),
-        ]);
-    }
-
-    // This is to test that a user cannot reschedule an existing appointment to a staff member from a different business.
-    public function test_cannot_reschedule_appointment_to_staff_from_another_business(): void
-    {
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE
-        |--------------------------------------------------------------------------
-        */
-        $user = User::factory()->create([
-            'role' => 'super_admin',
-        ]);
-
-        $business = Business::factory()->create();
-
-        $otherBusiness = Business::factory()->create();
-
-        $originalStaff = Staff::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $otherBusinessStaff = Staff::factory()->create([
-            'business_id' => $otherBusiness->id,
-        ]);
-
-        $customer = Customer::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $service = Service::factory()->create([
-            'business_id' => $business->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-
-        $originalStaff->services()->attach($service->id);
-
-        // Give the original staff working hours.
-        $appointmentDate = Carbon::now()
-            ->next(Carbon::THURSDAY)
-            ->setTime(9, 0);
-
-        StaffHour::create([
-            'staff_id' => $originalStaff->id,
-            'day_of_week' => $appointmentDate->dayOfWeek,
-            'start_time' => '09:00:00',
-            'end_time' => '17:00:00',
-            'is_off' => false,
-        ]);
-
-        // The other-business staff also has working hours.
-        // This ensures the test specifically checks the business boundary,
-        // rather than failing because the staff has no availability.
-        StaffHour::create([
-            'staff_id' => $otherBusinessStaff->id,
-            'day_of_week' => $appointmentDate->dayOfWeek,
-            'start_time' => '09:00:00',
-            'end_time' => '17:00:00',
-            'is_off' => false,
-        ]);
-
-        $appointment = Appointment::create([
-            'business_id' => $business->id,
-            'customer_id' => $customer->id,
-            'staff_id' => $originalStaff->id,
-            'start_datetime' => $appointmentDate,
-            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
-            'status' => 'pending',
-        ]);
-
-        AppointmentService::create([
-            'appointment_id' => $appointment->id,
-            'service_id' => $service->id,
-            'price' => $service->price,
-            'currency' => $business->currency,
-            'duration_minutes' => $service->duration_minutes,
-            'buffer_minutes' => $service->buffer_minutes,
-        ]);
-
-        $this->actingAs($user, 'sanctum');
-
-        /*
-        |--------------------------------------------------------------------------
-        | TEST
-        |--------------------------------------------------------------------------
-        */
-        $newStart = $appointmentDate
-            ->copy()
-            ->setTime(10, 0);
-
-        $response = $this->patchJson(
-            "/api/appointments/{$appointment->id}/reschedule",
-            [
-                'staff_id' => $otherBusinessStaff->id,
-                'start_datetime' => $newStart->format('Y-m-d H:i:s'),
-            ]
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | ASSERT
-        |--------------------------------------------------------------------------
-        */
-        $response->assertStatus(422);
-
-        // The appointment must remain assigned to its original staff.
-        $this->assertDatabaseHas('appointments', [
-            'id' => $appointment->id,
-            'business_id' => $business->id,
-            'staff_id' => $originalStaff->id,
-            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
-            'end_datetime' => $appointmentDate
-                ->copy()
-                ->addMinutes(45)
-                ->format('Y-m-d H:i:s'),
-        ]);
-    }
-
-    // This is to test that a user can reschedule an existing appointment without changing the staff member.
-    public function test_can_reschedule_appointment_without_changing_staff(): void
-    {
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE
-        |--------------------------------------------------------------------------
-        */
-        $user = User::factory()->create([
-            'role' => 'super_admin',
-        ]);
-
-        $business = Business::factory()->create();
-
-        $staff = Staff::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $customer = Customer::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $service = Service::factory()->create([
-            'business_id' => $business->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-
-        $staff->services()->attach($service->id);
-
-        $appointmentDate = Carbon::now()
-            ->next(Carbon::THURSDAY)
-            ->setTime(9, 0);
-
-        StaffHour::create([
-            'staff_id' => $staff->id,
-            'day_of_week' => $appointmentDate->dayOfWeek,
-            'start_time' => '09:00:00',
-            'end_time' => '17:00:00',
-            'is_off' => false,
-        ]);
-
-        $appointment = Appointment::create([
-            'business_id' => $business->id,
-            'customer_id' => $customer->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $appointmentDate,
-            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
-            'status' => 'pending',
-        ]);
-
-        AppointmentService::create([
-            'appointment_id' => $appointment->id,
-            'service_id' => $service->id,
-            'price' => $service->price,
-            'currency' => $business->currency,
-            'duration_minutes' => $service->duration_minutes,
-            'buffer_minutes' => $service->buffer_minutes,
-        ]);
-
-        $this->actingAs($user, 'sanctum');
-
-        /*
-        |--------------------------------------------------------------------------
-        | TEST
-        |--------------------------------------------------------------------------
-        */
-
-        // Do not provide staff_id.
-        $newStart = $appointmentDate
-            ->copy()
-            ->setTime(10, 0);
-
-        $response = $this->patchJson(
-            "/api/appointments/{$appointment->id}/reschedule",
-            [
-                'start_datetime' => $newStart->format('Y-m-d H:i:s'),
-            ]
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | ASSERT
-        |--------------------------------------------------------------------------
-        */
-        $response->assertStatus(200);
-
-        $response->assertJson([
-            'data' => [
-                'id' => $appointment->id,
-                'staff_id' => $staff->id,
-            ],
-        ]);
-
-        $this->assertDatabaseHas('appointments', [
-            'id' => $appointment->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $newStart->format('Y-m-d H:i:s'),
-            'end_datetime' => $newStart
-                ->copy()
-                ->addMinutes(45)
-                ->format('Y-m-d H:i:s'),
-        ]);
-
-        // Verify the service snapshot was preserved.
-        $this->assertDatabaseHas('appointment_services', [
-            'appointment_id' => $appointment->id,
-            'service_id' => $service->id,
-            'price' => $service->price,
-            'currency' => $business->currency,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-    }
-
-    // This is to test that a user cannot reschedule an existing appointment if they belong to a different business than the appointment's business.
-    public function test_cannot_reschedule_appointment_from_another_business(): void
-    {
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE
-        |--------------------------------------------------------------------------
-        */
-        $business = Business::factory()->create();
-        $otherBusiness = Business::factory()->create();
-
-        $businessAdmin = User::factory()->create([
-            'role' => 'admin',
-        ]);
-
-        $otherBusinessAdmin = User::factory()->create([
-            'role' => 'admin',
-        ]);
-
-        // Associate each admin with their own business.
-        $businessAdmin->businesses()->attach($business->id);
-        $otherBusinessAdmin->businesses()->attach($otherBusiness->id);
-
-        $staff = Staff::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $customer = Customer::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $service = Service::factory()->create([
-            'business_id' => $business->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-
-        $staff->services()->attach($service->id);
-
-        $appointmentDate = Carbon::now()
-            ->next(Carbon::THURSDAY)
-            ->setTime(9, 0);
-
-        StaffHour::create([
-            'staff_id' => $staff->id,
-            'day_of_week' => $appointmentDate->dayOfWeek,
-            'start_time' => '09:00:00',
-            'end_time' => '17:00:00',
-            'is_off' => false,
-        ]);
-
-        $appointment = Appointment::create([
-            'business_id' => $business->id,
-            'customer_id' => $customer->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $appointmentDate,
-            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
-            'status' => 'pending',
-        ]);
-
-        AppointmentService::create([
-            'appointment_id' => $appointment->id,
-            'service_id' => $service->id,
-            'price' => $service->price,
-            'currency' => $business->currency,
-            'duration_minutes' => $service->duration_minutes,
-            'buffer_minutes' => $service->buffer_minutes,
-        ]);
-
-        // Authenticate as an admin belonging to another business.
-        $this->actingAs($otherBusinessAdmin, 'sanctum');
-
-        /*
-        |--------------------------------------------------------------------------
-        | TEST
-        |--------------------------------------------------------------------------
-        */
-
-        $newStart = $appointmentDate
-            ->copy()
-            ->setTime(10, 0);
-
-        $response = $this->patchJson(
-            "/api/appointments/{$appointment->id}/reschedule",
-            [
-                'start_datetime' => $newStart->format('Y-m-d H:i:s'),
-            ]
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | ASSERT
-        |--------------------------------------------------------------------------
-        */
-
-        $response->assertStatus(403);
-
-        // Verify the appointment was not modified.
-        $this->assertDatabaseHas('appointments', [
-            'id' => $appointment->id,
-            'business_id' => $business->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
-            'end_datetime' => $appointmentDate
-                ->copy()
-                ->addMinutes(45)
-                ->format('Y-m-d H:i:s'),
-        ]);
-    }
-
-    // This is to test that a staff user cannot reschedule an existing appointment if they belong to a different business than the appointment's business.
-    public function test_staff_user_cannot_reschedule_appointment_from_another_business(): void
-    {
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE
-        |--------------------------------------------------------------------------
-        */
-        $business = Business::factory()->create();
-        $otherBusiness = Business::factory()->create();
-
-        // Appointment belongs to Business A.
-        $appointmentStaffUser = User::factory()->create([
-            'role' => 'staff',
-        ]);
-
-        $appointmentStaff = Staff::factory()->create([
-            'user_id' => $appointmentStaffUser->id,
-            'business_id' => $business->id,
-        ]);
-
-        // Authenticated staff user belongs to Business B.
-        $otherStaffUser = User::factory()->create([
-            'role' => 'staff',
-        ]);
-
-        Staff::factory()->create([
-            'user_id' => $otherStaffUser->id,
-            'business_id' => $otherBusiness->id,
-        ]);
-
-        $customer = Customer::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $service = Service::factory()->create([
-            'business_id' => $business->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-
-        $appointmentStaff->services()->attach($service->id);
-
-        $appointmentDate = Carbon::now()
-            ->next(Carbon::THURSDAY)
-            ->setTime(9, 0);
-
-        StaffHour::create([
-            'staff_id' => $appointmentStaff->id,
-            'day_of_week' => $appointmentDate->dayOfWeek,
-            'start_time' => '09:00:00',
-            'end_time' => '17:00:00',
-            'is_off' => false,
-        ]);
-
-        $appointment = Appointment::create([
-            'business_id' => $business->id,
-            'customer_id' => $customer->id,
-            'staff_id' => $appointmentStaff->id,
-            'start_datetime' => $appointmentDate,
-            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
-            'status' => 'pending',
-        ]);
-
-        AppointmentService::create([
-            'appointment_id' => $appointment->id,
-            'service_id' => $service->id,
-            'price' => $service->price,
-            'currency' => $business->currency,
-            'duration_minutes' => $service->duration_minutes,
-            'buffer_minutes' => $service->buffer_minutes,
-        ]);
-
-        // Authenticate as staff belonging to another business.
-        $this->actingAs($otherStaffUser, 'sanctum');
-
-        /*
-        |--------------------------------------------------------------------------
-        | TEST
-        |--------------------------------------------------------------------------
-        */
-        $newStart = $appointmentDate
-            ->copy()
-            ->setTime(10, 0);
-
-        $response = $this->patchJson(
-            "/api/appointments/{$appointment->id}/reschedule",
-            [
-                'start_datetime' => $newStart->format('Y-m-d H:i:s'),
-            ]
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | ASSERT
-        |--------------------------------------------------------------------------
-        */
-        $response->assertStatus(403);
-
-        // Verify that the appointment remains unchanged.
-        $this->assertDatabaseHas('appointments', [
-            'id' => $appointment->id,
-            'business_id' => $business->id,
-            'staff_id' => $appointmentStaff->id,
-            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
-            'end_datetime' => $appointmentDate
-                ->copy()
-                ->addMinutes(45)
-                ->format('Y-m-d H:i:s'),
-        ]);
-    }
-
-    // This is to test that an unauthenticated user cannot reschedule an existing appointment.
-    public function test_unauthenticated_user_cannot_reschedule_appointment(): void
-    {
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE
-        |--------------------------------------------------------------------------
-        */
-        $business = Business::factory()->create();
-
-        $staff = Staff::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $customer = Customer::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $service = Service::factory()->create([
-            'business_id' => $business->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-
-        $staff->services()->attach($service->id);
-
-        $appointmentDate = Carbon::now()
-            ->next(Carbon::THURSDAY)
-            ->setTime(9, 0);
-
-        StaffHour::create([
-            'staff_id' => $staff->id,
-            'day_of_week' => $appointmentDate->dayOfWeek,
-            'start_time' => '09:00:00',
-            'end_time' => '17:00:00',
-            'is_off' => false,
-        ]);
-
-        $appointment = Appointment::create([
-            'business_id' => $business->id,
-            'customer_id' => $customer->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $appointmentDate,
-            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
-            'status' => 'pending',
-        ]);
-
-        AppointmentService::create([
-            'appointment_id' => $appointment->id,
-            'service_id' => $service->id,
-            'price' => $service->price,
-            'currency' => $business->currency,
-            'duration_minutes' => $service->duration_minutes,
-            'buffer_minutes' => $service->buffer_minutes,
-        ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | TEST
-        |--------------------------------------------------------------------------
-        */
-
-        // No actingAs() — request is intentionally unauthenticated.
-        $newStart = $appointmentDate
-            ->copy()
-            ->setTime(10, 0);
-
-        $response = $this->patchJson(
-            "/api/appointments/{$appointment->id}/reschedule",
-            [
-                'start_datetime' => $newStart->format('Y-m-d H:i:s'),
-            ]
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | ASSERT
-        |--------------------------------------------------------------------------
-        */
-        $response->assertStatus(401);
-
-        // Verify that the appointment was not modified.
-        $this->assertDatabaseHas('appointments', [
-            'id' => $appointment->id,
-            'business_id' => $business->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
-            'end_datetime' => $appointmentDate
-                ->copy()
-                ->addMinutes(45)
-                ->format('Y-m-d H:i:s'),
-        ]);
-    }
-
-    // This is to test that a user cannot reschedule an existing appointment without providing a new start_datetime.
-    public function test_cannot_reschedule_appointment_without_start_datetime(): void
-    {
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE
-        |--------------------------------------------------------------------------
-        */
-        $user = User::factory()->create([
-            'role' => 'super_admin',
-        ]);
-
-        $business = Business::factory()->create();
-
-        $staff = Staff::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $customer = Customer::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $service = Service::factory()->create([
-            'business_id' => $business->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-
-        $staff->services()->attach($service->id);
-
-        $appointmentDate = Carbon::now()
-            ->next(Carbon::THURSDAY)
-            ->setTime(9, 0);
-
-        StaffHour::create([
-            'staff_id' => $staff->id,
-            'day_of_week' => $appointmentDate->dayOfWeek,
-            'start_time' => '09:00:00',
-            'end_time' => '17:00:00',
-            'is_off' => false,
-        ]);
-
-        $appointment = Appointment::create([
-            'business_id' => $business->id,
-            'customer_id' => $customer->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $appointmentDate,
-            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
-            'status' => 'pending',
-        ]);
-
-        AppointmentService::create([
-            'appointment_id' => $appointment->id,
-            'service_id' => $service->id,
-            'price' => $service->price,
-            'currency' => $business->currency,
-            'duration_minutes' => $service->duration_minutes,
-            'buffer_minutes' => $service->buffer_minutes,
-        ]);
-
-        $this->actingAs($user, 'sanctum');
-
-        /*
-        |--------------------------------------------------------------------------
-        | TEST
-        |--------------------------------------------------------------------------
-        */
-        $response = $this->patchJson(
-            "/api/appointments/{$appointment->id}/reschedule",
-            []
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | ASSERT
-        |--------------------------------------------------------------------------
-        */
-        $response->assertStatus(422);
-
-        $response->assertJsonValidationErrors([
-            'start_datetime',
-        ]);
-
-        // Appointment should remain unchanged.
-        $this->assertDatabaseHas('appointments', [
-            'id' => $appointment->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
-            'end_datetime' => $appointmentDate
-                ->copy()
-                ->addMinutes(45)
-                ->format('Y-m-d H:i:s'),
-        ]);
-    }
-
-    // This is to test that a user cannot reschedule an existing appointment to a staff member who does not exist.
-    public function test_cannot_reschedule_appointment_with_invalid_staff_id(): void
-    {
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE
-        |--------------------------------------------------------------------------
-        */
-        $user = User::factory()->create([
-            'role' => 'super_admin',
-        ]);
-
-        $business = Business::factory()->create();
-
-        $staff = Staff::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $customer = Customer::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $service = Service::factory()->create([
-            'business_id' => $business->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-
-        $staff->services()->attach($service->id);
-
-        $appointmentDate = Carbon::now()
-            ->next(Carbon::THURSDAY)
-            ->setTime(9, 0);
-
-        StaffHour::create([
-            'staff_id' => $staff->id,
-            'day_of_week' => $appointmentDate->dayOfWeek,
-            'start_time' => '09:00:00',
-            'end_time' => '17:00:00',
-            'is_off' => false,
-        ]);
-
-        $appointment = Appointment::create([
-            'business_id' => $business->id,
-            'customer_id' => $customer->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $appointmentDate,
-            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
-            'status' => 'pending',
-        ]);
-
-        AppointmentService::create([
-            'appointment_id' => $appointment->id,
-            'service_id' => $service->id,
-            'price' => $service->price,
-            'currency' => $business->currency,
-            'duration_minutes' => $service->duration_minutes,
-            'buffer_minutes' => $service->buffer_minutes,
-        ]);
-
-        $this->actingAs($user, 'sanctum');
-
-        /*
-        |--------------------------------------------------------------------------
-        | TEST
-        |--------------------------------------------------------------------------
-        */
-        $newStart = $appointmentDate
-            ->copy()
-            ->setTime(10, 0);
-
-        // Use an ID that does not exist.
-        $invalidStaffId = 999999;
-
-        $response = $this->patchJson(
-            "/api/appointments/{$appointment->id}/reschedule",
-            [
-                'staff_id' => $invalidStaffId,
-                'start_datetime' => $newStart->format('Y-m-d H:i:s'),
-            ]
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | ASSERT
-        |--------------------------------------------------------------------------
-        */
-        $response->assertStatus(422);
-
-        $response->assertJsonValidationErrors([
-            'staff_id',
-        ]);
-
-        // Appointment should remain completely unchanged.
-        $this->assertDatabaseHas('appointments', [
-            'id' => $appointment->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
-            'end_datetime' => $appointmentDate
-                ->copy()
-                ->addMinutes(45)
-                ->format('Y-m-d H:i:s'),
-        ]);
-    }
-
-    // This is to test that a user cannot reschedule an existing appointment with an invalid start_datetime format.
-    public function test_cannot_reschedule_appointment_with_invalid_start_datetime(): void
-    {
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE
-        |--------------------------------------------------------------------------
-        */
-        $user = User::factory()->create([
-            'role' => 'super_admin',
-        ]);
-
-        $business = Business::factory()->create();
-
-        $staff = Staff::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $customer = Customer::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $service = Service::factory()->create([
-            'business_id' => $business->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-
-        $staff->services()->attach($service->id);
-
-        $appointmentDate = Carbon::now()
-            ->next(Carbon::THURSDAY)
-            ->setTime(9, 0);
-
-        StaffHour::create([
-            'staff_id' => $staff->id,
-            'day_of_week' => $appointmentDate->dayOfWeek,
-            'start_time' => '09:00:00',
-            'end_time' => '17:00:00',
-            'is_off' => false,
-        ]);
-
-        $appointment = Appointment::create([
-            'business_id' => $business->id,
-            'customer_id' => $customer->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $appointmentDate,
-            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
-            'status' => 'pending',
-        ]);
-
-        AppointmentService::create([
-            'appointment_id' => $appointment->id,
-            'service_id' => $service->id,
-            'price' => $service->price,
-            'currency' => $business->currency,
-            'duration_minutes' => $service->duration_minutes,
-            'buffer_minutes' => $service->buffer_minutes,
-        ]);
-
-        $this->actingAs($user, 'sanctum');
-
-        /*
-        |--------------------------------------------------------------------------
-        | TEST
-        |--------------------------------------------------------------------------
-        */
-        $response = $this->patchJson(
-            "/api/appointments/{$appointment->id}/reschedule",
-            [
-                'start_datetime' => 'not-a-valid-date',
-            ]
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | ASSERT
-        |--------------------------------------------------------------------------
-        */
-        $response->assertStatus(422);
-
-        $response->assertJsonValidationErrors([
-            'start_datetime',
-        ]);
-
-        // Appointment should remain unchanged.
-        $this->assertDatabaseHas('appointments', [
-            'id' => $appointment->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
-            'end_datetime' => $appointmentDate
-                ->copy()
-                ->addMinutes(45)
-                ->format('Y-m-d H:i:s'),
-        ]);
-    }
-
-    // This is to test that a user can reschedule an existing appointment that has multiple services attached to it 
-    // (and ensure the service snapshots are preserved).
-    public function test_can_reschedule_multi_service_appointment()
-    {
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE
-        |--------------------------------------------------------------------------
-        */
-        $user = User::factory()->create([
-            'role' => 'super_admin',
-        ]);
-
-        $business = Business::factory()->create();
-
-        $staff = Staff::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $customer = Customer::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $service1 = Service::factory()->create([
-            'business_id' => $business->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-
-        $service2 = Service::factory()->create([
-            'business_id' => $business->id,
-            'duration_minutes' => 60,
-            'buffer_minutes' => 10,
-        ]);
-
-        $staff->services()->attach([
-            $service1->id,
-            $service2->id,
-        ]);
-
-        $appointmentDate = Carbon::now()
-            ->next(Carbon::THURSDAY)
-            ->setTime(9, 0);
-
-        $rescheduleDate = $appointmentDate
-            ->copy()
-            ->setTime(11, 0);
-
-        StaffHour::create([
-            'staff_id' => $staff->id,
-            'day_of_week' => $appointmentDate->dayOfWeek,
-            'start_time' => '08:00',
-            'end_time' => '17:00',
-            'is_off' => false,
-        ]);
-
-        $this->actingAs($user, 'sanctum');
-
-        // Total:
-        // Service 1 = 30 + 15 = 45 minutes
-        // Service 2 = 60 + 10 = 70 minutes
-        // Total = 115 minutes
-        $appointment = Appointment::create([
-            'business_id' => $business->id,
-            'customer_id' => $customer->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $appointmentDate,
-            'end_datetime' => $appointmentDate->copy()->addMinutes(115),
-            'status' => 'pending',
-        ]);
-
-        AppointmentService::create([
-            'appointment_id' => $appointment->id,
-            'service_id' => $service1->id,
-            'price' => $service1->price,
-            'currency' => $business->currency,
-            'duration_minutes' => $service1->duration_minutes,
-            'buffer_minutes' => $service1->buffer_minutes,
-        ]);
-
-        AppointmentService::create([
-            'appointment_id' => $appointment->id,
-            'service_id' => $service2->id,
-            'price' => $service2->price,
-            'currency' => $business->currency,
-            'duration_minutes' => $service2->duration_minutes,
-            'buffer_minutes' => $service2->buffer_minutes,
-        ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | TEST
-        |--------------------------------------------------------------------------
-        */
-        $response = $this->patchJson(
-            "/api/appointments/{$appointment->id}/reschedule",
-            [
-                'start_datetime' => $rescheduleDate->toDateTimeString(),
-            ]
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | ASSERT
-        |--------------------------------------------------------------------------
-        */
-        $response->assertStatus(200)
-            ->assertJson([
-                'message' => 'Appointment rescheduled successfully.',
-            ]);
-
-        $appointment->refresh();
-
-        $this->assertEquals(
-            $rescheduleDate->toDateTimeString(),
-            $appointment->start_datetime->toDateTimeString()
-        );
-
-        $this->assertEquals(
-            $rescheduleDate
-                ->copy()
-                ->addMinutes(115)
-                ->toDateTimeString(),
-            $appointment->end_datetime->toDateTimeString()
-        );
-
-        // Verify both service snapshots were preserved
-        $this->assertDatabaseCount('appointment_services', 2);
-
-        $this->assertDatabaseHas('appointment_services', [
-            'appointment_id' => $appointment->id,
-            'service_id' => $service1->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-
-        $this->assertDatabaseHas('appointment_services', [
-            'appointment_id' => $appointment->id,
-            'service_id' => $service2->id,
-            'duration_minutes' => 60,
-            'buffer_minutes' => 10,
-        ]);
-    }
-
-    // This is to test that a user can reschedule an existing appointment and the appointment status remains unchanged.
-    public function test_reschedule_preserves_appointment_status()
-    {
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE
-        |--------------------------------------------------------------------------
-        */
-        $user = User::factory()->create([
-            'role' => 'super_admin',
-        ]);
-
-        $business = Business::factory()->create();
-
-        $staff = Staff::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $customer = Customer::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $service = Service::factory()->create([
-            'business_id' => $business->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-
-        $staff->services()->attach($service->id);
-
-        $appointmentDate = Carbon::now()
-            ->next(Carbon::THURSDAY)
-            ->setTime(9, 0);
-
-        $rescheduleDate = $appointmentDate
-            ->copy()
-            ->setTime(11, 0);
-
-        StaffHour::create([
-            'staff_id' => $staff->id,
-            'day_of_week' => $appointmentDate->dayOfWeek,
-            'start_time' => '08:00',
-            'end_time' => '17:00',
-            'is_off' => false,
-        ]);
-
-        $this->actingAs($user, 'sanctum');
-
-        $appointment = Appointment::create([
-            'business_id' => $business->id,
-            'customer_id' => $customer->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $appointmentDate,
-            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
-            'status' => 'confirmed',
-        ]);
-
-        AppointmentService::create([
-            'appointment_id' => $appointment->id,
-            'service_id' => $service->id,
-            'price' => $service->price,
-            'currency' => $business->currency,
-            'duration_minutes' => $service->duration_minutes,
-            'buffer_minutes' => $service->buffer_minutes,
-        ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | TEST
-        |--------------------------------------------------------------------------
-        */
-        $response = $this->patchJson(
-            "/api/appointments/{$appointment->id}/reschedule",
-            [
-                'start_datetime' => $rescheduleDate->toDateTimeString(),
-            ]
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | ASSERT
-        |--------------------------------------------------------------------------
-        */
-        $response->assertStatus(200)
-            ->assertJson([
-                'message' => 'Appointment rescheduled successfully.',
-                'data' => [
-                    'status' => 'confirmed',
-                ],
-            ]);
-
-        $appointment->refresh();
-
-        $this->assertEquals('confirmed', $appointment->status);
-
-        $this->assertEquals(
-            $rescheduleDate->toDateTimeString(),
-            $appointment->start_datetime->toDateTimeString()
-        );
-
-        $this->assertEquals(
-            $rescheduleDate
-                ->copy()
-                ->addMinutes(45)
-                ->toDateTimeString(),
-            $appointment->end_datetime->toDateTimeString()
-        );
-    }
-
-    // This is to test that a user cannot reschedule an existing appointment if the appointment has already been completed.
-    public function test_cannot_reschedule_completed_appointment()
-    {
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE
-        |--------------------------------------------------------------------------
-        */
-        $user = User::factory()->create([
-            'role' => 'super_admin',
-        ]);
-
-        $business = Business::factory()->create();
-
-        $staff = Staff::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $customer = Customer::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $service = Service::factory()->create([
-            'business_id' => $business->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-
-        $staff->services()->attach($service->id);
-
-        $appointmentDate = Carbon::now()
-            ->next(Carbon::THURSDAY)
-            ->setTime(9, 0);
-
-        $rescheduleDate = $appointmentDate
-            ->copy()
-            ->setTime(11, 0);
-
-        StaffHour::create([
-            'staff_id' => $staff->id,
-            'day_of_week' => $appointmentDate->dayOfWeek,
-            'start_time' => '08:00',
-            'end_time' => '17:00',
-            'is_off' => false,
-        ]);
-
-        $this->actingAs($user, 'sanctum');
-
-        $appointment = Appointment::create([
-            'business_id' => $business->id,
-            'customer_id' => $customer->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $appointmentDate,
-            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
-            'status' => 'completed',
-        ]);
-
-        AppointmentService::create([
-            'appointment_id' => $appointment->id,
-            'service_id' => $service->id,
-            'price' => $service->price,
-            'currency' => $business->currency,
-            'duration_minutes' => $service->duration_minutes,
-            'buffer_minutes' => $service->buffer_minutes,
-        ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | TEST
-        |--------------------------------------------------------------------------
-        */
-        $response = $this->patchJson(
-            "/api/appointments/{$appointment->id}/reschedule",
-            [
-                'start_datetime' => $rescheduleDate->toDateTimeString(),
-            ]
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | ASSERT
-        |--------------------------------------------------------------------------
-        */
-        $response->assertStatus(422)
-            ->assertJson([
-                'message' => 'Only pending and confirmed appointments can be rescheduled.',
-            ]);
-
-        $appointment->refresh();
-
-        // Verify appointment was not changed
-        $this->assertEquals('completed', $appointment->status);
-
-        $this->assertEquals(
-            $appointmentDate->toDateTimeString(),
-            $appointment->start_datetime->toDateTimeString()
-        );
-
-        $this->assertEquals(
-            $appointmentDate
-                ->copy()
-                ->addMinutes(45)
-                ->toDateTimeString(),
-            $appointment->end_datetime->toDateTimeString()
-        );
-    }
-
-    // This is to test that a user cannot reschedule an existing appointment if the appointment has already been marked as cancelled.
-    public function test_cannot_reschedule_cancelled_appointment()
-    {
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE
-        |--------------------------------------------------------------------------
-        */
-        $user = User::factory()->create([
-            'role' => 'super_admin',
-        ]);
-
-        $business = Business::factory()->create();
-
-        $staff = Staff::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $customer = Customer::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $service = Service::factory()->create([
-            'business_id' => $business->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-
-        $staff->services()->attach($service->id);
-
-        $appointmentDate = Carbon::now()
-            ->next(Carbon::THURSDAY)
-            ->setTime(9, 0);
-
-        $rescheduleDate = $appointmentDate
-            ->copy()
-            ->setTime(11, 0);
-
-        StaffHour::create([
-            'staff_id' => $staff->id,
-            'day_of_week' => $appointmentDate->dayOfWeek,
-            'start_time' => '08:00',
-            'end_time' => '17:00',
-            'is_off' => false,
-        ]);
-
-        $this->actingAs($user, 'sanctum');
-
-        $appointment = Appointment::create([
-            'business_id' => $business->id,
-            'customer_id' => $customer->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $appointmentDate,
-            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
-            'status' => 'cancelled',
-        ]);
-
-        AppointmentService::create([
-            'appointment_id' => $appointment->id,
-            'service_id' => $service->id,
-            'price' => $service->price,
-            'currency' => $business->currency,
-            'duration_minutes' => $service->duration_minutes,
-            'buffer_minutes' => $service->buffer_minutes,
-        ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | TEST
-        |--------------------------------------------------------------------------
-        */
-        $response = $this->patchJson(
-            "/api/appointments/{$appointment->id}/reschedule",
-            [
-                'start_datetime' => $rescheduleDate->toDateTimeString(),
-            ]
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | ASSERT
-        |--------------------------------------------------------------------------
-        */
-        $response->assertStatus(422)
-            ->assertJson([
-                'message' => 'Only pending and confirmed appointments can be rescheduled.',
-            ]);
-
-        $appointment->refresh();
-
-        // Verify appointment was not changed
-        $this->assertEquals('cancelled', $appointment->status);
-
-        $this->assertEquals(
-            $appointmentDate->toDateTimeString(),
-            $appointment->start_datetime->toDateTimeString()
-        );
-
-        $this->assertEquals(
-            $appointmentDate
-                ->copy()
-                ->addMinutes(45)
-                ->toDateTimeString(),
-            $appointment->end_datetime->toDateTimeString()
-        );
-    }
-
-    // This is to test that a user cannot reschedule an existing appointment if the appointment has already been marked as no-show.
-    public function test_cannot_reschedule_no_show_appointment()
-    {
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE
-        |--------------------------------------------------------------------------
-        */
-        $user = User::factory()->create([
-            'role' => 'super_admin',
-        ]);
-
-        $business = Business::factory()->create();
-
-        $staff = Staff::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $customer = Customer::factory()->create([
-            'business_id' => $business->id,
-        ]);
-
-        $service = Service::factory()->create([
-            'business_id' => $business->id,
-            'duration_minutes' => 30,
-            'buffer_minutes' => 15,
-        ]);
-
-        $staff->services()->attach($service->id);
-
-        $appointmentDate = Carbon::now()
-            ->next(Carbon::THURSDAY)
-            ->setTime(9, 0);
-
-        $rescheduleDate = $appointmentDate
-            ->copy()
-            ->setTime(11, 0);
-
-        StaffHour::create([
-            'staff_id' => $staff->id,
-            'day_of_week' => $appointmentDate->dayOfWeek,
-            'start_time' => '08:00',
-            'end_time' => '17:00',
-            'is_off' => false,
-        ]);
-
-        $this->actingAs($user, 'sanctum');
-
-        $appointment = Appointment::create([
-            'business_id' => $business->id,
-            'customer_id' => $customer->id,
-            'staff_id' => $staff->id,
-            'start_datetime' => $appointmentDate,
-            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
-            'status' => 'no_show',
-        ]);
-
-        AppointmentService::create([
-            'appointment_id' => $appointment->id,
-            'service_id' => $service->id,
-            'price' => $service->price,
-            'currency' => $business->currency,
-            'duration_minutes' => $service->duration_minutes,
-            'buffer_minutes' => $service->buffer_minutes,
-        ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | TEST
-        |--------------------------------------------------------------------------
-        */
-        $response = $this->patchJson(
-            "/api/appointments/{$appointment->id}/reschedule",
-            [
-                'start_datetime' => $rescheduleDate->toDateTimeString(),
-            ]
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | ASSERT
-        |--------------------------------------------------------------------------
-        */
-        $response->assertStatus(422)
-            ->assertJson([
-                'message' => 'Only pending and confirmed appointments can be rescheduled.',
-            ]);
-
-        $appointment->refresh();
-
-        // Verify appointment was not changed
-        $this->assertEquals('no_show', $appointment->status);
-
-        $this->assertEquals(
-            $appointmentDate->toDateTimeString(),
-            $appointment->start_datetime->toDateTimeString()
-        );
-
-        $this->assertEquals(
-            $appointmentDate
-                ->copy()
-                ->addMinutes(45)
-                ->toDateTimeString(),
-            $appointment->end_datetime->toDateTimeString()
-        );
-    }
-
     /*
     |==========================================================================
     | APPOINTMENT INDEX() API TEST
@@ -6017,5 +3995,2027 @@ class AppointmentTest extends TestCase
             'notes' => 'Updated by staff.',
             'status' => 'pending',
         ]);
+    }
+
+    /*
+    |==========================================================================
+    | APPOINTMENT RESCHEDULE() API TESTS
+    |==========================================================================
+    */
+    
+    //This is to test that a user can reschedule an existing appointment to a new valid time slot
+    public function test_can_reschedule_appointment(): void
+    {
+        /*
+        |---------------------------------------------
+        | CREATE
+        |---------------------------------------------
+        */
+        $business = Business::factory()->create();
+
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+            'user_id' => $user->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => 4,
+            'start_time' => '09:00',
+            'end_time' => '17:00',
+            'is_off' => false,
+        ]);
+
+        //dynamic date
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        //dynamic reschedule date
+        $rescheduleDate = $appointmentDate
+            ->copy()
+            ->setTime(10, 0);
+
+        // Create original appointment
+        $createResponse = $this->postJson('/api/appointments', [
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
+            'services' => [
+                ['service_id' => $service->id],
+            ],
+            'notes' => 'Reschedule test',
+        ]);
+
+        $createResponse->assertStatus(201);
+
+        $appointment = Appointment::latest('id')->first();
+
+        $this->assertNotNull($appointment);
+
+        // Original appointment should occupy 09:00 -> 09:45 (30 mins service + 15 mins buffer)
+        $this->assertEquals(
+            $appointmentDate->format('Y-m-d H:i:s'),
+            $appointment->start_datetime->format('Y-m-d H:i:s')
+        );
+
+        $expectedOriginalEnd = $appointmentDate
+            ->copy()
+            ->addMinutes(45);
+
+        $this->assertEquals(
+            $expectedOriginalEnd->format('Y-m-d H:i:s'),
+            $appointment->end_datetime->format('Y-m-d H:i:s')
+        );
+
+        /*
+        |---------------------------------------------
+        | TEST
+        |---------------------------------------------
+        */
+        //reschedule to 10:00
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'start_datetime' => $rescheduleDate->format('Y-m-d H:i:s'),
+            ]
+        );
+
+        /*
+        |---------------------------------------------
+        | ASSERT
+        |---------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJson([
+            'message' => 'Appointment rescheduled successfully.',
+        ]);
+
+        $expectedRescheduleEnd = $rescheduleDate
+            ->copy()
+            ->addMinutes(45);
+
+        $this->assertDatabaseHas(
+            'appointments',
+            [
+                'id' => $appointment->id,
+                'staff_id' => $staff->id,
+                'start_datetime' => $rescheduleDate->format('Y-m-d H:i:s'),
+                'end_datetime' => $expectedRescheduleEnd->format('Y-m-d H:i:s'),
+            ]
+        );
+
+        // Ensure the appointment services were preserved
+        $this->assertDatabaseHas('appointment_services', [
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+    }
+
+    //This is to test that a user cannot reschedule an existing appointment to a past time slot
+    public function test_cannot_reschedule_appointment_to_past(): void
+    {
+        /*
+        |---------------------------------------------
+        | CREATE
+        |---------------------------------------------
+        */
+        $business = Business::factory()->create();
+
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+            'user_id' => $user->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        StaffHour::factory()->create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '09:00',
+            'end_time' => '17:00',
+            'is_off' => false,
+        ]);
+
+        // Create a valid future appointment
+        $createResponse = $this->postJson('/api/appointments', [
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
+            'services' => [
+                ['service_id' => $service->id],
+            ],
+            'notes' => 'Past reschedule test',
+        ]);
+
+        $createResponse->assertStatus(201);
+
+        $appointment = Appointment::latest('id')->first();
+
+        $this->assertNotNull($appointment);
+
+        // Create a dynamically generated past date
+        $pastDate = Carbon::now()
+            ->subDay()
+            ->setTime(9, 0);
+
+        /*
+        |---------------------------------------------
+        | TEST
+        |---------------------------------------------
+        */
+        // attempt to reschedule into the past
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'start_datetime' => $pastDate->format('Y-m-d H:i:s'),
+            ]
+        );
+
+        /*
+        |---------------------------------------------
+        | ASSERT
+        |---------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors([
+            'start_datetime',
+        ]);
+
+        // Ensure the original appointment was not changed
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    //This is to test that a user cannot reschedule an existing appointment to a time slot that conflicts with another appointment for the same staff member
+    public function test_cannot_reschedule_appointment_to_conflicting_slot(): void
+    {
+        /*
+        |---------------------------------------------
+        | CREATE
+        |---------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        // First appointment: 09:00 - 09:45
+        $firstAppointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $firstAppointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        // Second appointment: 10:00 - 10:45
+        $secondAppointmentStart = $appointmentDate
+            ->copy()
+            ->setTime(10, 0);
+
+        $secondAppointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $secondAppointmentStart,
+            'end_datetime' => $secondAppointmentStart->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $secondAppointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |---------------------------------------------
+        | TEST
+        |---------------------------------------------
+        */
+        // Try to move the second appointment into the first appointment's time.
+        $conflictingStart = $appointmentDate
+            ->copy()
+            ->setTime(9, 15);
+
+        $response = $this->patchJson(
+            "/api/appointments/{$secondAppointment->id}/reschedule",
+            [
+                'start_datetime' => $conflictingStart->format('Y-m-d H:i:s'),
+            ]
+        );
+
+        /*
+        |---------------------------------------------
+        | ASSERT
+        |---------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJson(['message' => 'The selected time conflicts with another appointment.',]);
+
+        // The second appointment should remain at its original time.
+        $this->assertDatabaseHas('appointments', [
+            'id' => $secondAppointment->id,
+            'start_datetime' => $secondAppointmentStart->format('Y-m-d H:i:s'),
+            'end_datetime' => $secondAppointmentStart
+                ->copy()
+                ->addMinutes(45)
+                ->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    // This is to test that a user can reschedule an existing appointment to a different staff member,
+    // provided the new staff member is available and provides the service.
+    public function test_can_reschedule_appointment_to_different_staff(): void
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        //two staff members for the same business
+        $originalStaff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $newStaff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        // Both staff members provide the service.
+        $originalStaff->services()->attach($service->id);
+        $newStaff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        // Original staff works on this day.
+        StaffHour::create([
+            'staff_id' => $originalStaff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        // New staff also works on this day.
+        StaffHour::create([
+            'staff_id' => $newStaff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        // Create the original appointment.
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $originalStaff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $newStart = $appointmentDate
+            ->copy()
+            ->setTime(10, 0);
+
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'staff_id' => $newStaff->id,
+                'start_datetime' => $newStart->format('Y-m-d H:i:s'),
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJson([
+            'message' => 'Appointment rescheduled successfully.',
+            'data' => [
+                'id' => $appointment->id,
+                'staff_id' => $newStaff->id,
+            ],
+        ]);
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'staff_id' => $newStaff->id,
+            'start_datetime' => $newStart->format('Y-m-d H:i:s'),
+            'end_datetime' => $newStart
+                ->copy()
+                ->addMinutes(45)
+                ->format('Y-m-d H:i:s'),
+        ]);
+
+        // The appointment service snapshot should remain unchanged.
+        $this->assertDatabaseHas('appointment_services', [
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+    }
+
+    // This is to test that a user cannot reschedule an existing appointment to a different staff member who does not provide the service.
+    public function test_cannot_reschedule_appointment_to_staff_without_service(): void
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $originalStaff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $newStaff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        // Only the original staff provides the service.
+        $originalStaff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        // Both staff members are working on this day.
+        StaffHour::create([
+            'staff_id' => $originalStaff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        StaffHour::create([
+            'staff_id' => $newStaff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $originalStaff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $newStart = $appointmentDate
+            ->copy()
+            ->setTime(10, 0);
+
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'staff_id' => $newStaff->id,
+                'start_datetime' => $newStart->format('Y-m-d H:i:s'),
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        // The appointment should not be moved to the incompatible staff member.
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'staff_id' => $originalStaff->id,
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
+            'end_datetime' => $appointmentDate
+                ->copy()
+                ->addMinutes(45)
+                ->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    // This is to test that a user cannot reschedule an existing appointment to a staff member from a different business.
+    public function test_cannot_reschedule_appointment_to_staff_from_another_business(): void
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $otherBusiness = Business::factory()->create();
+
+        $originalStaff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $otherBusinessStaff = Staff::factory()->create([
+            'business_id' => $otherBusiness->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $originalStaff->services()->attach($service->id);
+
+        // Give the original staff working hours.
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        StaffHour::create([
+            'staff_id' => $originalStaff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        // The other-business staff also has working hours.
+        // This ensures the test specifically checks the business boundary,
+        // rather than failing because the staff has no availability.
+        StaffHour::create([
+            'staff_id' => $otherBusinessStaff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $originalStaff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $newStart = $appointmentDate
+            ->copy()
+            ->setTime(10, 0);
+
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'staff_id' => $otherBusinessStaff->id,
+                'start_datetime' => $newStart->format('Y-m-d H:i:s'),
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        // The appointment must remain assigned to its original staff.
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'business_id' => $business->id,
+            'staff_id' => $originalStaff->id,
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
+            'end_datetime' => $appointmentDate
+                ->copy()
+                ->addMinutes(45)
+                ->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    // This is to test that a user can reschedule an existing appointment without changing the staff member.
+    public function test_can_reschedule_appointment_without_changing_staff(): void
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+
+        // Do not provide staff_id.
+        $newStart = $appointmentDate
+            ->copy()
+            ->setTime(10, 0);
+
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'start_datetime' => $newStart->format('Y-m-d H:i:s'),
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $response->assertJson([
+            'data' => [
+                'id' => $appointment->id,
+                'staff_id' => $staff->id,
+            ],
+        ]);
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $newStart->format('Y-m-d H:i:s'),
+            'end_datetime' => $newStart
+                ->copy()
+                ->addMinutes(45)
+                ->format('Y-m-d H:i:s'),
+        ]);
+
+        // Verify the service snapshot was preserved.
+        $this->assertDatabaseHas('appointment_services', [
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+    }
+
+    // This is to test that a user cannot reschedule an existing appointment if they belong to a different business than the appointment's business.
+    public function test_cannot_reschedule_appointment_from_another_business(): void
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $business = Business::factory()->create();
+        $otherBusiness = Business::factory()->create();
+
+        $businessAdmin = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $otherBusinessAdmin = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        // Associate each admin with their own business.
+        $businessAdmin->businesses()->attach($business->id);
+        $otherBusinessAdmin->businesses()->attach($otherBusiness->id);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        // Authenticate as an admin belonging to another business.
+        $this->actingAs($otherBusinessAdmin, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+
+        $newStart = $appointmentDate
+            ->copy()
+            ->setTime(10, 0);
+
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'start_datetime' => $newStart->format('Y-m-d H:i:s'),
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+
+        $response->assertStatus(403);
+
+        // Verify the appointment was not modified.
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
+            'end_datetime' => $appointmentDate
+                ->copy()
+                ->addMinutes(45)
+                ->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    // This is to test that a staff user cannot reschedule an existing appointment if they belong to a different business than the appointment's business.
+    public function test_staff_user_cannot_reschedule_appointment_from_another_business(): void
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $business = Business::factory()->create();
+        $otherBusiness = Business::factory()->create();
+
+        // Appointment belongs to Business A.
+        $appointmentStaffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        $appointmentStaff = Staff::factory()->create([
+            'user_id' => $appointmentStaffUser->id,
+            'business_id' => $business->id,
+        ]);
+
+        // Authenticated staff user belongs to Business B.
+        $otherStaffUser = User::factory()->create([
+            'role' => 'staff',
+        ]);
+
+        Staff::factory()->create([
+            'user_id' => $otherStaffUser->id,
+            'business_id' => $otherBusiness->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $appointmentStaff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        StaffHour::create([
+            'staff_id' => $appointmentStaff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $appointmentStaff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        // Authenticate as staff belonging to another business.
+        $this->actingAs($otherStaffUser, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $newStart = $appointmentDate
+            ->copy()
+            ->setTime(10, 0);
+
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'start_datetime' => $newStart->format('Y-m-d H:i:s'),
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(403);
+
+        // Verify that the appointment remains unchanged.
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'business_id' => $business->id,
+            'staff_id' => $appointmentStaff->id,
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
+            'end_datetime' => $appointmentDate
+                ->copy()
+                ->addMinutes(45)
+                ->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    // This is to test that an unauthenticated user cannot reschedule an existing appointment.
+    public function test_unauthenticated_user_cannot_reschedule_appointment(): void
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+
+        // No actingAs() — request is intentionally unauthenticated.
+        $newStart = $appointmentDate
+            ->copy()
+            ->setTime(10, 0);
+
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'start_datetime' => $newStart->format('Y-m-d H:i:s'),
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(401);
+
+        // Verify that the appointment was not modified.
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
+            'end_datetime' => $appointmentDate
+                ->copy()
+                ->addMinutes(45)
+                ->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    // This is to test that a user cannot reschedule an existing appointment without providing a new start_datetime.
+    public function test_cannot_reschedule_appointment_without_start_datetime(): void
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            []
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors([
+            'start_datetime',
+        ]);
+
+        // Appointment should remain unchanged.
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
+            'end_datetime' => $appointmentDate
+                ->copy()
+                ->addMinutes(45)
+                ->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    // This is to test that a user cannot reschedule an existing appointment to a staff member who does not exist.
+    public function test_cannot_reschedule_appointment_with_invalid_staff_id(): void
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $newStart = $appointmentDate
+            ->copy()
+            ->setTime(10, 0);
+
+        // Use an ID that does not exist.
+        $invalidStaffId = 999999;
+
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'staff_id' => $invalidStaffId,
+                'start_datetime' => $newStart->format('Y-m-d H:i:s'),
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors([
+            'staff_id',
+        ]);
+
+        // Appointment should remain completely unchanged.
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
+            'end_datetime' => $appointmentDate
+                ->copy()
+                ->addMinutes(45)
+                ->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    // This is to test that a user cannot reschedule an existing appointment with an invalid start_datetime format.
+    public function test_cannot_reschedule_appointment_with_invalid_start_datetime(): void
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'start_datetime' => 'not-a-valid-date',
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422);
+
+        $response->assertJsonValidationErrors([
+            'start_datetime',
+        ]);
+
+        // Appointment should remain unchanged.
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate->format('Y-m-d H:i:s'),
+            'end_datetime' => $appointmentDate
+                ->copy()
+                ->addMinutes(45)
+                ->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    // This is to test that a user can reschedule an existing appointment that has multiple services attached to it 
+    // (and ensure the service snapshots are preserved).
+    public function test_can_reschedule_multi_service_appointment()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service1 = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $service2 = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 60,
+            'buffer_minutes' => 10,
+        ]);
+
+        $staff->services()->attach([
+            $service1->id,
+            $service2->id,
+        ]);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        $rescheduleDate = $appointmentDate
+            ->copy()
+            ->setTime(11, 0);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '08:00',
+            'end_time' => '17:00',
+            'is_off' => false,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Total:
+        // Service 1 = 30 + 15 = 45 minutes
+        // Service 2 = 60 + 10 = 70 minutes
+        // Total = 115 minutes
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(115),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service1->id,
+            'price' => $service1->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service1->duration_minutes,
+            'buffer_minutes' => $service1->buffer_minutes,
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service2->id,
+            'price' => $service2->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service2->duration_minutes,
+            'buffer_minutes' => $service2->buffer_minutes,
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'start_datetime' => $rescheduleDate->toDateTimeString(),
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200)
+            ->assertJson([
+                'message' => 'Appointment rescheduled successfully.',
+            ]);
+
+        $appointment->refresh();
+
+        $this->assertEquals(
+            $rescheduleDate->toDateTimeString(),
+            $appointment->start_datetime->toDateTimeString()
+        );
+
+        $this->assertEquals(
+            $rescheduleDate
+                ->copy()
+                ->addMinutes(115)
+                ->toDateTimeString(),
+            $appointment->end_datetime->toDateTimeString()
+        );
+
+        // Verify both service snapshots were preserved
+        $this->assertDatabaseCount('appointment_services', 2);
+
+        $this->assertDatabaseHas('appointment_services', [
+            'appointment_id' => $appointment->id,
+            'service_id' => $service1->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $this->assertDatabaseHas('appointment_services', [
+            'appointment_id' => $appointment->id,
+            'service_id' => $service2->id,
+            'duration_minutes' => 60,
+            'buffer_minutes' => 10,
+        ]);
+    }
+
+    // This is to test that a user can reschedule an existing appointment and the appointment status remains unchanged.
+    public function test_reschedule_preserves_appointment_status()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        $rescheduleDate = $appointmentDate
+            ->copy()
+            ->setTime(11, 0);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '08:00',
+            'end_time' => '17:00',
+            'is_off' => false,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'confirmed',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'start_datetime' => $rescheduleDate->toDateTimeString(),
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200)
+            ->assertJson([
+                'message' => 'Appointment rescheduled successfully.',
+                'data' => [
+                    'status' => 'confirmed',
+                ],
+            ]);
+
+        $appointment->refresh();
+
+        $this->assertEquals('confirmed', $appointment->status);
+
+        $this->assertEquals(
+            $rescheduleDate->toDateTimeString(),
+            $appointment->start_datetime->toDateTimeString()
+        );
+
+        $this->assertEquals(
+            $rescheduleDate
+                ->copy()
+                ->addMinutes(45)
+                ->toDateTimeString(),
+            $appointment->end_datetime->toDateTimeString()
+        );
+    }
+
+    // This is to test that a user cannot reschedule an existing appointment if the appointment has already been completed.
+    public function test_cannot_reschedule_completed_appointment()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        $rescheduleDate = $appointmentDate
+            ->copy()
+            ->setTime(11, 0);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '08:00',
+            'end_time' => '17:00',
+            'is_off' => false,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'completed',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'start_datetime' => $rescheduleDate->toDateTimeString(),
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'Only pending and confirmed appointments can be rescheduled.',
+            ]);
+
+        $appointment->refresh();
+
+        // Verify appointment was not changed
+        $this->assertEquals('completed', $appointment->status);
+
+        $this->assertEquals(
+            $appointmentDate->toDateTimeString(),
+            $appointment->start_datetime->toDateTimeString()
+        );
+
+        $this->assertEquals(
+            $appointmentDate
+                ->copy()
+                ->addMinutes(45)
+                ->toDateTimeString(),
+            $appointment->end_datetime->toDateTimeString()
+        );
+    }
+
+    // This is to test that a user cannot reschedule an existing appointment if the appointment has already been marked as cancelled.
+    public function test_cannot_reschedule_cancelled_appointment()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        $rescheduleDate = $appointmentDate
+            ->copy()
+            ->setTime(11, 0);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '08:00',
+            'end_time' => '17:00',
+            'is_off' => false,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'cancelled',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'start_datetime' => $rescheduleDate->toDateTimeString(),
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'Only pending and confirmed appointments can be rescheduled.',
+            ]);
+
+        $appointment->refresh();
+
+        // Verify appointment was not changed
+        $this->assertEquals('cancelled', $appointment->status);
+
+        $this->assertEquals(
+            $appointmentDate->toDateTimeString(),
+            $appointment->start_datetime->toDateTimeString()
+        );
+
+        $this->assertEquals(
+            $appointmentDate
+                ->copy()
+                ->addMinutes(45)
+                ->toDateTimeString(),
+            $appointment->end_datetime->toDateTimeString()
+        );
+    }
+
+    // This is to test that a user cannot reschedule an existing appointment if the appointment has already been marked as no-show.
+    public function test_cannot_reschedule_no_show_appointment()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $appointmentDate = Carbon::now()
+            ->next(Carbon::THURSDAY)
+            ->setTime(9, 0);
+
+        $rescheduleDate = $appointmentDate
+            ->copy()
+            ->setTime(11, 0);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $appointmentDate->dayOfWeek,
+            'start_time' => '08:00',
+            'end_time' => '17:00',
+            'is_off' => false,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentDate,
+            'end_datetime' => $appointmentDate->copy()->addMinutes(45),
+            'status' => 'no_show',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'start_datetime' => $rescheduleDate->toDateTimeString(),
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'Only pending and confirmed appointments can be rescheduled.',
+            ]);
+
+        $appointment->refresh();
+
+        // Verify appointment was not changed
+        $this->assertEquals('no_show', $appointment->status);
+
+        $this->assertEquals(
+            $appointmentDate->toDateTimeString(),
+            $appointment->start_datetime->toDateTimeString()
+        );
+
+        $this->assertEquals(
+            $appointmentDate
+                ->copy()
+                ->addMinutes(45)
+                ->toDateTimeString(),
+            $appointment->end_datetime->toDateTimeString()
+        );
     }
 }
