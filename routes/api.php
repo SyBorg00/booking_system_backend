@@ -12,8 +12,7 @@ use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BusinessController;
 use App\Http\Controllers\StaffServiceController;
-
-
+use App\Http\Controllers\UserController;
 
 /*
 ==========================
@@ -49,6 +48,10 @@ Route::middleware('auth:sanctum')->group(function () {
     USER MAIN SECTION
     ====================
     */
+    //fetch all users (only for super_admin and admin roles)
+    Route::get('/users', [UserController::class, 'index']);
+
+    //fetch the authenticated user's details
     Route::get('/user', function (Request $request) {
         return $request->user();
     })->middleware('auth:sanctum');
