@@ -6,6 +6,7 @@ use App\Http\Requests\StoreStaffRequest;
 use App\Http\Requests\UpdateStaffRequest;
 use App\Models\Business;
 use App\Models\Staff;
+use Illuminate\Support\Facades\DB;
 
 class StaffController extends Controller
 {
@@ -92,14 +93,27 @@ class StaffController extends Controller
         |--------------------------------------------------------------------------
         */
         $this->authorize('view', $business);
+
         abort_unless(
             $staff->business_id ===  $business->id,
             404
         );
 
-        $staff->update(
-            $request->validated()
-        );
+        $validated = $request->validated();
+
+        DB::transaction(function () use ($staff, $validated) {
+            $staff->user->update([
+                'first_name' => $validated['first_name'],
+                'last_name' => $validated['last_name'],
+            ]);
+    
+            $staff->update([
+                'phone' => $validated['phone'] ?? null,
+                'position' => $validated['position'],
+            ]);
+        });
+    
+        $staff->load('user');
 
         return response()->json(
             [

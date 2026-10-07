@@ -1089,6 +1089,67 @@ class StaffTest extends TestCase
         ]);
     }
 
+    // Updating a staff member should also update the related user name
+    public function test_updating_staff_updates_the_related_user_name(): void
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE
+        |--------------------------------------------------------------------------
+        */
+        $admin = User::factory()->create([
+            'role' => 'super_admin',
+            'first_name' => 'Old',
+            'last_name' => 'Name',
+        ]);
+
+        $business = Business::factory()->create();
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+            'user_id' => $admin->id,
+            'phone' => '09171234567',
+            'position' => 'Manager',
+        ]);
+
+        $this->actingAs($admin, 'sanctum');
+
+        /*
+        |--------------------------------------------------------------------------
+        | TEST
+        |--------------------------------------------------------------------------
+        */
+        $response = $this->putJson(
+            "/api/businesses/{$business->id}/staff/{$staff->id}",
+            [
+                'first_name' => 'New',
+                'last_name' => 'Name',
+                'phone' => '09981234567',
+                'position' => 'Senior Manager',
+            ]
+        );
+        
+        /*
+        |--------------------------------------------------------------------------
+        | ASSERT
+        |--------------------------------------------------------------------------
+        */
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $admin->id,
+            'first_name' => 'New',
+            'last_name' => 'Name',
+        ]);
+
+        $this->assertDatabaseHas('staff', [
+            'id' => $staff->id,
+            'phone' => '09981234567',
+            'position' => 'Senior Manager',
+        ]);
+    }
+
+
     /*
     |==========================================================================
     | DELETE & AUTHORIZATION TEST CASES
