@@ -27,6 +27,7 @@ class StoreStaffTimeOffRequest extends FormRequest
             'start_datetime' => [
                 'required',
                 'date',
+                'after_or_equal:now',
             ],
 
             'end_datetime' => [

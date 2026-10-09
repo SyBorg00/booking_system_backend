@@ -27,6 +27,7 @@ class UpdateStaffTimeOffRequest extends FormRequest
             'start_datetime' => [
                 'sometimes',
                 'date',
+                'after_or_equal:now',
             ],
 
             'end_datetime' => [
