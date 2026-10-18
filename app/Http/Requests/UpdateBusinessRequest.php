@@ -80,7 +80,11 @@ class UpdateBusinessRequest extends FormRequest
                 'sometimes',
                 'required',
                 'string',
-                'max:100',
+                Rule::in(
+                    \DateTimeZone::listIdentifiers(
+                        \DateTimeZone::ALL
+                    )
+                ),
             ],
 
             'logo' => [
