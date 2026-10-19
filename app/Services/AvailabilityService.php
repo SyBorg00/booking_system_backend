@@ -5,13 +5,14 @@ namespace App\Services;
 use App\Models\Appointment;
 use App\Models\Service;
 use App\Models\Staff;
+use App\Models\Business;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 class AvailabilityService
 {
 
-    //Get available appointment slots for a staff member.
+    //Get available appointment slots for a staff member. (NOT USED AS OF THE MOMENT)
     public function getAvailableSlots(
         Staff $staff,
         Service $service,
@@ -19,10 +20,10 @@ class AvailabilityService
     ): array {
 
         /*
-    |--------------------------------------------------------------------------
-    | Verify that the staff member provides this service.
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | Verify that the staff member provides this service.
+        |--------------------------------------------------------------------------
+        */
         if (!$this->staffProvidesServices($staff, collect([$service]))) {
             return [];
         }
@@ -155,8 +156,7 @@ class AvailabilityService
         return $availableSlots;
     }
 
-
-    // Similar to the one above but for multiple services.
+    // Similar to the one above but for multiple services. (CURRENTLY IN USE)
     public function getAvailableSlotsForServices(
         Staff $staff,
         Collection $services,
@@ -170,12 +170,19 @@ class AvailabilityService
         if (!$this->staffProvidesServices($staff, $services)) {
             return [];
         }
-        $date = Carbon::parse($date);
 
-        $dayStart = $date->copy()->startOfDay();
-        $dayEnd = $date->copy()->addDay()->startOfDay();
+        /*
+        |--------------------------------------------------------------------------
+        | Fetch Business data and their respective timezone
+        |--------------------------------------------------------------------------
+        */
+        $business = Business::findOrFail($staff->business_id);
+        $timezone = $business->timezone;
 
-        $dayOfWeek = $date->dayOfWeek;
+        // Interpret the requested date in the business timezone.
+        $localDate = Carbon::parse($date, $timezone)->startOfDay();
+
+        $dayOfWeek = $localDate->dayOfWeek;
 
         $staffHours = $staff->hours()
             ->where('day_of_week', $dayOfWeek)
@@ -187,38 +194,10 @@ class AvailabilityService
             return [];
         }
 
-        $timeOffs = $staff->timeOffs()
-            ->where('start_datetime', '<', $dayEnd)
-            ->where('end_datetime', '>', $dayStart)
-            ->get();
-
-        $appointments = Appointment::where('staff_id', $staff->id)
-            ->where('start_datetime', '<', $dayEnd)
-            ->where('end_datetime', '>', $dayStart)
-            ->whereIn('status', [
-                'pending',
-                'confirmed',
-            ])
-            ->get();
-
-
         /*
         |--------------------------------------------------------------------------
-        |This is where it differs from the other method
-        |--------------------------------------------------------------------------        
-        |* Calculate the total amount of time required by all services.
-        |
-        | Example:
-        |
-        | Service 1:
-        | duration = 30
-        | buffer   = 15
-        |
-        | Service 2:
-        | duration = 60
-        | buffer   = 20
-        |
-        | Total = 125 minutes
+        | Calculate total duration, including service buffers.
+        |--------------------------------------------------------------------------
         */
         $slotDuration = $services->sum(function ($service) {
             return $service->duration_minutes
@@ -233,84 +212,67 @@ class AvailabilityService
 
         /*
         |--------------------------------------------------------------------------
-        | Generate slots for each working period.
-        |--------------------------------------------------------------------------        
+        | Generate candidate slots for each working period.
+        |--------------------------------------------------------------------------
         */
-
         foreach ($staffHours as $hours) {
-
             $periodStart = Carbon::parse(
-                $date->toDateString() . ' ' . $hours->start_time
+                $localDate->toDateString() . ' ' . $hours->start_time,
+                $timezone
             );
 
             $periodEnd = Carbon::parse(
-                $date->toDateString() . ' ' . $hours->end_time
+                $localDate->toDateString() . ' ' . $hours->end_time,
+                $timezone
             );
 
-            /*
-            |--------------------------------------------------------------------------
-            |Generate candidate slots.
-            |--------------------------------------------------------------------------
-            */
             $slot = $periodStart->copy();
 
             while (
                 $slot->copy()
-                ->addMinutes($slotDuration)
-                ->lte($periodEnd)
+                    ->addMinutes($slotDuration)
+                    ->lte($periodEnd)
             ) {
-                $slotEnd = $slot->copy()
-                    ->addMinutes($slotDuration);
+                /*
+                |--------------------------------------------------------------------------
+                | Convert the candidate start to UTC before validation.
+                |--------------------------------------------------------------------------
+                */
+                $slotStartUtc = $slot->copy()->utc();
 
                 /*
                 |--------------------------------------------------------------------------
-                |Check time-off conflicts.
+                | Validate the candidate using the shared validation method.
                 |--------------------------------------------------------------------------
                 */
-                $conflictsWithTimeOff = $timeOffs->contains(
-                    function ($timeOff) use ($slot, $slotEnd) {
-                        return $slot->lt($timeOff->end_datetime)
-                            && $slotEnd->gt($timeOff->start_datetime);
-                    }
+                $conflictMessage = $this->validateSlot(
+                    $staff,
+                    $slotStartUtc,
+                    $slotDuration
                 );
+
                 /*
                 |--------------------------------------------------------------------------
-                | Check confirmed/pending appointment conflicts.
+                | Return only valid slots in the business's local time.
                 |--------------------------------------------------------------------------
                 */
-                $conflictsWithAppointment = $appointments->contains(
-                    function ($appointment) use ($slot, $slotEnd) {
-                        return $slot->lt($appointment->end_datetime)
-                            && $slotEnd->gt($appointment->start_datetime);
-                    }
-                );
-                /*
-                |--------------------------------------------------------------------------
-                | Only return slots that do not conflict with anything.
-                |--------------------------------------------------------------------------
-                */
-                if (
-                    !$conflictsWithTimeOff &&
-                    !$conflictsWithAppointment
-                ) {
+                if ($conflictMessage === null) {
+                    $slotEndLocal = $slot->copy()
+                        ->addMinutes($slotDuration);
+
                     $availableSlots[] = [
                         'start' => $slot->format('H:i'),
-                        'end' => $slotEnd->format('H:i'),
+                        'end' => $slotEndLocal->format('H:i'),
                     ];
                 }
-
-                /*
-                |--------------------------------------------------------------------------
-                | Move to the next candidate slot. As of the moment, its just hardcoded to
-                | 15 minutes, though this should be business based dependent
-                |--------------------------------------------------------------------------
-                */
+                // Advance to the next candidate slot.
                 $slot->addMinutes(15);
             }
         }
 
         return $availableSlots;
     }
+
 
     /*
     |-----------------------------------------------------------------------------------------
@@ -355,13 +317,40 @@ class AvailabilityService
         ?int $excludeAppointmentId = null //This guy is only used for the rescheduling function in the appointment controller
     ): ?string {
 
+        /*
+        |--------------------------------------------------------------------------
+        | Fetch business data and its timezone
+        |--------------------------------------------------------------------------
+        */
+        $business = Business::findOrFail($staff->business_id);
+        $timezone = $business->timezone;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Normalize the incoming timestamp to UTC.
+        |--------------------------------------------------------------------------
+        */
+        $startUtc = $start->copy()->utc();
+        $endUtc = $startUtc->copy()->addMinutes($durationMinutes);
+
+        //disregard
         $end = $start->copy()->addMinutes($durationMinutes);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Determine the relevant local working day.
+        |--------------------------------------------------------------------------
+        */
+        $localStart = $startUtc->copy()->setTimezone($timezone);
+        $localDate = $localStart->toDateString();
+        $dayOfWeek = $localStart->dayOfWeek;
 
         /*
         |--------------------------------------------------------------------------
         | Check working hours
         |--------------------------------------------------------------------------
         */
+        //disregard
         $dayOfWeek = $start->dayOfWeek;
 
         $staffHours = $staff->hours()
@@ -370,18 +359,25 @@ class AvailabilityService
             ->get();
 
         $fitsWorkingHours = $staffHours->contains(
-            function ($hours) use ($start, $end) {
+            function ($hours) use (
+                $localDate,
+                $timezone,
+                $startUtc,
+                $endUtc,
+        ) {
 
-                $periodStart = Carbon::parse(
-                    $start->toDateString() . ' ' . $hours->start_time
-                );
+                $periodStartUtc = Carbon::parse(
+                    $localDate . ' ' . $hours->start_time,
+                    $timezone
+                )->utc();
 
-                $periodEnd = Carbon::parse(
-                    $start->toDateString() . ' ' . $hours->end_time
-                );
+                $periodEndUtc = Carbon::parse(
+                    $localDate . ' ' . $hours->end_time,
+                    $timezone
+                )->utc();
 
-                return $start->gte($periodStart)
-                    && $end->lte($periodEnd);
+                return $startUtc->gte($periodStartUtc)
+                && $endUtc->lte($periodEndUtc);
             }
         );
 
@@ -396,8 +392,16 @@ class AvailabilityService
         */
 
         $timeOffConflict = $staff->timeOffs()
-            ->where('start_datetime', '<', $end)
-            ->where('end_datetime', '>', $start)
+            ->where(
+                'start_datetime',
+                '<',
+                $endUtc->format('Y-m-d H:i:s')
+            )
+            ->where(
+                'end_datetime',
+                '>',
+                $startUtc->format('Y-m-d H:i:s')
+            )
             ->exists();
 
         if ($timeOffConflict) {
@@ -413,16 +417,18 @@ class AvailabilityService
         | Excluded the appointment currently being rescheduled.
         |
         */
-        $appointmentQuery = Appointment::where(
-            'staff_id',
-            $staff->id
-        )
-            ->where('start_datetime', '<', $end)
-            ->where('end_datetime', '>', $start)
-            ->whereIn('status', [
-                'pending',
-                'confirmed',
-            ]);
+        $appointmentQuery = Appointment::where('staff_id', $staff->id)
+            ->where(
+                'start_datetime',
+                '<',
+                $endUtc->format('Y-m-d H:i:s')
+            )
+            ->where(
+                'end_datetime',
+                '>',
+                $startUtc->format('Y-m-d H:i:s')
+            )
+            ->whereIn('status', ['pending', 'confirmed']);
 
         /*
         |--------------------------------------------------------------------------

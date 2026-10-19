@@ -246,17 +246,20 @@ class AppointmentController extends Controller
         | Calculate total appointment duration
         |--------------------------------------------------------------------------
         */
-        $totalMinutes = $services->sum(function ($service) {
+        $totalDuration = $services->sum(function ($service) {
             return $service->duration_minutes
                 + $service->buffer_minutes;
         });
-        if ($totalMinutes <= 0) {
+        if ($totalDuration <= 0) {
             throw ValidationException::withMessages(['services' =>
             ['The selected services have an invalid duration.',],]);
         }
 
-        $start = Carbon::parse($validated['start_datetime']);
-        $end = $start->copy()->addMinutes($totalMinutes);
+        $start = Carbon::parse(
+            $validated['start_datetime'],
+            $business->timezone
+        )->utc();
+        $end = $start->copy()->addMinutes($totalDuration);
 
         /*
         |--------------------------------------------------------------------------
@@ -266,7 +269,7 @@ class AppointmentController extends Controller
         $conflictMessage = $availabilityService->validateSlot(
             $staff,
             $start,
-            $totalMinutes
+            $totalDuration
         );
 
         if ($conflictMessage !== null) {
@@ -414,9 +417,15 @@ class AppointmentController extends Controller
             'start_datetime' => [
                 'required',
                 'date',
-                'after_or_equal:now',
             ],
         ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Fetch the current business data
+        |--------------------------------------------------------------------------
+        */
+        $business = Business::findOrFail($appointment->business_id);
 
         /*
         |--------------------------------------------------------------------------
@@ -503,10 +512,16 @@ class AppointmentController extends Controller
         | Calculate new end time
         |--------------------------------------------------------------------------
         */
-
         $start = Carbon::parse(
-            $validated['start_datetime']
-        );
+            $validated['start_datetime'],
+            $business->timezone
+        )->utc();
+        
+        if ($start->lt(now('UTC'))) {
+            return response()->json([
+                'message' => 'The appointment must start in the future.',
+            ], 422);
+        }
 
         $end = $start->copy()->addMinutes($totalDuration);
 
