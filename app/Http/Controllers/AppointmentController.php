@@ -158,8 +158,9 @@ class AppointmentController extends Controller
 
         $appointments = $query
             ->with([
+                'business:id,name,timezone',
                 'customer',
-                'staff',
+                'staff.user',
                 'appointmentServices.service',
             ])
             ->orderBy('start_datetime')
@@ -255,6 +256,19 @@ class AppointmentController extends Controller
             ['The selected services have an invalid duration.',],]);
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | Convert business-local appointment time to UTC
+        |--------------------------------------------------------------------------
+        |
+        | The request must contain a datetime in the business's local timezone,
+        | without a UTC suffix or timezone offset.
+        |
+        | Example:
+        | Asia/Tokyo: 2026-10-24 09:00:00
+        | Stored UTC: 2026-10-24 00:00:00
+        |
+        */
         $start = Carbon::parse(
             $validated['start_datetime'],
             $business->timezone
@@ -326,8 +340,9 @@ class AppointmentController extends Controller
         $this->authorize('view', $appointment);
 
         $appointment->load([
+            'business:id,name,timezone',
             'customer',
-            'staff',
+            'staff.user',
             'appointmentServices.service'
         ]);
 
@@ -511,6 +526,20 @@ class AppointmentController extends Controller
         |--------------------------------------------------------------------------
         | Calculate new end time
         |--------------------------------------------------------------------------
+        */
+
+        /*
+        |--------------------------------------------------------------------------
+        | Convert business-local appointment time to UTC
+        |--------------------------------------------------------------------------
+        |
+        | The request must contain a datetime in the business's local timezone,
+        | without a UTC suffix or timezone offset.
+        |
+        | Example:
+        | Asia/Tokyo: 2026-10-24 09:00:00
+        | Stored UTC: 2026-10-24 00:00:00
+        |
         */
         $start = Carbon::parse(
             $validated['start_datetime'],
