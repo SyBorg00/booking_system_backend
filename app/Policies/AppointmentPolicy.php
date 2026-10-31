@@ -23,6 +23,70 @@ class AppointmentPolicy
      */
     public function view(User $user, Appointment $appointment): bool
     {
+        return $this->hasBusinessAccess(
+            $user,
+            $appointment->business_id
+        );
+    }
+
+    /**
+     * Determine whether the user can create models.
+     */
+    public function create(User $user, Business $business): bool
+    {
+        return $this->hasBusinessAccess(
+            $user,
+            $business->id
+        );
+    }
+
+    /**
+     * Determine whether the user can update the model.
+     */
+    public function update(User $user, Appointment $appointment): bool
+    {
+        return $this->hasBusinessAccess(
+            $user,
+            $appointment->business_id
+        );
+    }
+
+    /**
+     * Determine whether the user can delete the model.
+     */
+    public function delete(User $user, Appointment $appointment): bool
+    {
+        return $this->hasBusinessAccess(
+            $user,
+            $appointment->business_id
+        );
+    }
+
+    /**
+     * Determine whether the user can restore the model.
+     */
+    public function restore(User $user, Appointment $appointment): bool
+    {
+        return false;
+    }
+
+    /**
+     * Determine whether the user can permanently delete the model.
+     */
+    public function forceDelete(User $user, Appointment $appointment): bool
+    {
+        return false;
+    }
+    
+
+    /**
+     * Shared authorization logic for appointment operations.
+     */
+    private function hasBusinessAccess(
+        User $user,
+        int $businessId
+    ): bool {
+
         /* 
         |-------------------------------------------------------------------------- 
         | Super admins can access appointments across all businesses. 
@@ -43,7 +107,7 @@ class AppointmentPolicy
         */
         if ($user->role === 'admin') {
             return $user->businesses()
-                ->where('business_id', $appointment->business_id)
+                ->where('businesses.id', $businessId)
                 ->exists();
         }
 
@@ -57,70 +121,11 @@ class AppointmentPolicy
         | access is denied 
         */
         if ($user->role === 'staff') {
-            return $user->staff
-                && $user->staff->business_id === $appointment->business_id;
-        }
-
-        /* 
-        |-------------------------------------------------------------------------- 
-        | Anything else returns false
-        |-------------------------------------------------------------------------- 
-        */
-        return false;
-    }
-
-    /**
-     * Determine whether the user can create models.
-     */
-    public function create(User $user): bool
-    {
-        return false;
-    }
-
-    /**
-     * Determine whether the user can update the model.
-     */
-    public function update(User $user, Appointment $appointment): bool
-    {
-        if ($user->role === 'super_admin') {
-            return true;
-        }
-
-        if ($user->role === 'admin') {
-            return $user->businesses()
-                ->where('businesses.id', $appointment->business_id)
+            return $user->staff()
+                ->where('business_id', $businessId)
                 ->exists();
         }
 
-        if ($user->role === 'staff') {
-            return $user->staff
-                && $user->staff->business_id === $appointment->business_id;
-        }
-
-        return false;
-    }
-
-    /**
-     * Determine whether the user can delete the model.
-     */
-    public function delete(User $user, Appointment $appointment): bool
-    {
-        return false;
-    }
-
-    /**
-     * Determine whether the user can restore the model.
-     */
-    public function restore(User $user, Appointment $appointment): bool
-    {
-        return false;
-    }
-
-    /**
-     * Determine whether the user can permanently delete the model.
-     */
-    public function forceDelete(User $user, Appointment $appointment): bool
-    {
         return false;
     }
 }
