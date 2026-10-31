@@ -406,6 +406,14 @@ class AppointmentController extends Controller
         Appointment $appointment,
         AvailabilityService $availabilityService
     ) {
+
+        /*
+        |--------------------------------------------------------------------------
+        | Authorization check to ensure the user has permission to reschedule an appointment (put here as early as possible to avoid unnecessary processing)
+        |--------------------------------------------------------------------------
+        */
+        $this->authorize('update', $appointment);
+        
         /* 
         |-------------------------------------------------------------------------- 
         | Only pending and confirmed appointments can be rescheduled 
@@ -416,12 +424,7 @@ class AppointmentController extends Controller
                 'message' => 'Only pending and confirmed appointments can be rescheduled.',
             ], 422);
         }
-        /*
-        |--------------------------------------------------------------------------
-        | Authorization check to ensure the user has permission to reschedule an appointment (put here as early as possible to avoid unnecessary processing)
-        |--------------------------------------------------------------------------
-        */
-        $this->authorize('update', $appointment);
+        
         $validated = $request->validate([
             'staff_id' => [
                 'sometimes',
