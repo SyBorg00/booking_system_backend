@@ -12,6 +12,7 @@ use App\Models\Staff;
 use App\Models\StaffHour;
 use App\Models\StaffTimeOff;
 use App\Models\AppointmentService;
+use App\Services\AvailabilityService;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -3358,5 +3359,289 @@ class AvailabilityTest extends TestCase
         $response->assertJson([
             'message' => 'The selected service does not belong to this business.',
         ]);
+    }
+
+     /*
+    |==========================================================================
+    | APPOINTMENT LOCAL DATETIME <-> UTC HANDLING CASES
+    |==========================================================================
+    */
+
+    public function test_availability_detects_appointment_from_previous_utc_date(): void
+    {
+        // Arrange
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $localDate = '2026-10-24';
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => Carbon::parse($localDate)->dayOfWeek,
+            'start_time' => '00:00:00',
+            'end_time' => '04:00:00',
+            'is_off' => false,
+        ]);
+
+        // Local: October 24, 00:30–01:15
+        // UTC:   October 23, 16:30–17:15
+        $startUtc = Carbon::parse(
+            "$localDate 00:30:00",
+            'Asia/Manila'
+        )->utc();
+
+        $endUtc = $startUtc->copy()->addMinutes(45);
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $startUtc,
+            'end_datetime' => $endUtc,
+            'status' => 'confirmed',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        // Act
+        $slots = app(AvailabilityService::class)
+            ->getAvailableSlotsForServices(
+                $staff,
+                collect([$service]),
+                $localDate
+            );
+
+        // Assert
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'start_datetime' => '2026-10-23 16:30:00',
+            'end_datetime' => '2026-10-23 17:15:00',
+        ]);
+
+        $conflictingSlotExists = collect($slots)->contains(
+            fn (array $slot) => $slot['start'] === '00:30'
+        );
+
+        $this->assertFalse(
+            $conflictingSlotExists,
+            'The availability service must exclude the occupied local-time slot.'
+        );
+    }
+
+    public function test_availability_excludes_slots_conflicting_with_time_off_across_utc_date_boundary(): void
+    {
+        // Arrange
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $localDate = '2026-10-24';
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => Carbon::parse($localDate)->dayOfWeek,
+            'start_time' => '00:00:00',
+            'end_time' => '04:00:00',
+            'is_off' => false,
+        ]);
+
+        // Local time off: 00:30–01:15 on October 24.
+        // UTC time off:   16:30–17:15 on October 23.
+        StaffTimeOff::create([
+            'staff_id' => $staff->id,
+            'start_datetime' => '2026-10-23 16:30:00',
+            'end_datetime' => '2026-10-23 17:15:00',
+            'reason' => 'Timezone boundary test',
+        ]);
+
+        // Act
+        $slots = app(AvailabilityService::class)
+            ->getAvailableSlotsForServices(
+                $staff,
+                collect([$service]),
+                $localDate
+            );
+
+        // Assert
+        $conflictingSlotExists = collect($slots)->contains(
+            fn (array $slot) => $slot['start'] === '00:30'
+        );
+
+        $this->assertFalse(
+            $conflictingSlotExists,
+            'Availability must exclude slots overlapping staff time off.'
+        );
+    }
+
+
+    public function test_availability_uses_tokyo_business_local_time(): void
+    {
+        // Arrange
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Tokyo',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $localDate = '2026-10-24';
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => Carbon::parse($localDate)->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        // An appointment at 09:00 Tokyo time is 00:00 UTC.
+        $appointmentStartUtc = Carbon::parse(
+            "{$localDate} 00:00:00",
+            'UTC'
+        );
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => Customer::factory()->create([
+                'business_id' => $business->id,
+            ])->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $appointmentStartUtc,
+            'end_datetime' => $appointmentStartUtc->copy()->addMinutes(45),
+            'status' => 'confirmed',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        // Act
+        $slots = app(AvailabilityService::class)
+            ->getAvailableSlotsForServices(
+                $staff,
+                collect([$service]),
+                $localDate
+            );
+
+        // Assert
+        $slotStarts = collect($slots)->pluck('start');
+
+        // The appointment blocks 09:00 Tokyo time.
+        $this->assertFalse(
+            $slotStarts->contains('09:00'),
+            'The occupied 09:00 Tokyo slot should not be available.'
+        );
+
+        // The next 15-minute slot should be available if it doesn't overlap.
+        $this->assertTrue(
+            $slotStarts->contains('09:45'),
+            'The 09:45 Tokyo slot should be available.'
+        );
+    }
+
+    public function test_availability_excludes_staff_time_off(): void
+    {
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Tokyo',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $localDate = '2026-10-24';
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => Carbon::parse($localDate)->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        // 09:00–09:45 Tokyo time = 00:00–00:45 UTC.
+        StaffTimeOff::create([
+            'staff_id' => $staff->id,
+            'start_datetime' => '2026-10-24 00:00:00',
+            'end_datetime' => '2026-10-24 00:45:00',
+            'reason' => 'Timezone test',
+        ]);
+
+        $slots = app(AvailabilityService::class)
+            ->getAvailableSlotsForServices(
+                $staff,
+                collect([$service]),
+                $localDate
+            );
+
+        $slotStarts = collect($slots)->pluck('start');
+
+        $this->assertFalse(
+            $slotStarts->contains('09:00'),
+            'Staff time off must block the corresponding Tokyo local slot.'
+        );
+
+        $this->assertTrue(
+            $slotStarts->contains('09:45'),
+            'Availability should resume after the time-off period.'
+        );
     }
 }
