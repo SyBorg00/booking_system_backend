@@ -12,7 +12,10 @@ class UpdateServiceRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $business = $this->route('business');
+
+        return $business instanceof Business
+            && $this->user()->can('update', $business);
     }
 
     /**
