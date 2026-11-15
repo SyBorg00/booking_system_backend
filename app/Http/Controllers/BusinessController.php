@@ -18,9 +18,28 @@ class BusinessController extends Controller
         */
         $this->authorize('viewAny', Business::class);
 
-        $businesses = Business::query()
-            ->orderBy('name')
-            ->get();
+        $user = auth()->user();
+        $query = Business::query();
+
+        if ($user->role === 'admin') {
+            // Only businesses assigned to this admin.
+            $query->whereHas('users', function ($q) use ($user) {
+                $q->where('users.id', $user->id);
+            });
+
+        } elseif ($user->role === 'staff') {
+            // Only the business associated with this staff member.
+            $query->whereHas('staff', function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+            });
+
+        } elseif ($user->role !== 'super_admin') {
+            abort(403, 'Unauthorized.');
+        }
+        
+        $businesses = $query
+        ->orderBy('name')
+        ->get();
 
         return response()->json([
             'data' => $businesses,
