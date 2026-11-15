@@ -34,7 +34,9 @@ class AppointmentTest extends TestCase
         */
 
         // Create the business
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         // Create the user associated with the staff member
         $user = User::factory()->create();
@@ -131,7 +133,9 @@ class AppointmentTest extends TestCase
         | CREATE
         |---------------------------------------------
         */
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $user = User::factory()->create();
 
@@ -202,7 +206,9 @@ class AppointmentTest extends TestCase
         | CREATE
         |---------------------------------------------
         */
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $user = User::factory()->create();
 
@@ -286,7 +292,9 @@ class AppointmentTest extends TestCase
         | CREATE
         |---------------------------------------------
         */
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
         $otherBusiness = Business::factory()->create();
 
         $user = User::factory()->create([
@@ -364,7 +372,9 @@ class AppointmentTest extends TestCase
         | CREATE
         |---------------------------------------------
         */
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $user = User::factory()->create([
             'role' => 'super_admin',
@@ -456,7 +466,9 @@ class AppointmentTest extends TestCase
         | CREATE
         |---------------------------------------------
         */
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $user = User::factory()->create([
             'role' => 'super_admin',
@@ -563,7 +575,9 @@ class AppointmentTest extends TestCase
         | CREATE
         |---------------------------------------------
         */
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $user = User::factory()->create([
             'role' => 'super_admin',
@@ -663,7 +677,9 @@ class AppointmentTest extends TestCase
         | CREATE
         |---------------------------------------------
         */
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $user = User::factory()->create([
             'role' => 'super_admin',
@@ -772,7 +788,9 @@ class AppointmentTest extends TestCase
         | CREATE
         |---------------------------------------------
         */
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $user = User::factory()->create([
             'role' => 'super_admin',
@@ -882,7 +900,9 @@ class AppointmentTest extends TestCase
         | CREATE
         |---------------------------------------------
         */
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $user = User::factory()->create([
             'role' => 'super_admin',
@@ -992,7 +1012,9 @@ class AppointmentTest extends TestCase
         | CREATE
         |---------------------------------------------
         */
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $user = User::factory()->create([
             'role' => 'super_admin',
@@ -1097,6 +1119,139 @@ class AppointmentTest extends TestCase
         ]);
     }
 
+    // Test to ensure that the scheduled time being stored in the database is with UTC format
+    public function test_appointment_creation_stores_business_local_time_as_utc(): void
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => Carbon::parse('2026-10-24')->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        // 09:00 Asia/Manila = 01:00 UTC
+        $localStart = '2026-10-24 09:00:00';
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act
+        $response = $this->postJson('/api/appointments', [
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $localStart,
+            'services' => [
+                ['service_id' => $service->id],
+            ],
+        ]);
+
+        // Assert
+        $response->assertStatus(201);
+
+        $appointmentId = $response->json('data.id');
+
+        $this->assertNotNull($appointmentId);
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointmentId,
+            'business_id' => $business->id,
+            'start_datetime' => '2026-10-24 01:00:00',
+            'end_datetime' => '2026-10-24 01:45:00',
+        ]);
+    }
+
+    // Test to ensure that other timezones aside from the Philippine timezone also stores the datetime as UTC
+    public function test_appointment_creation_stores_tokyo_business_time_as_utc(): void
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Tokyo',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $localDate = '2026-10-24';
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => Carbon::parse($localDate)->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act: request an appointment at 09:00 Tokyo time.
+        $response = $this->postJson('/api/appointments', [
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => "{$localDate} 09:00:00",
+            'services' => [
+                [
+                    'service_id' => $service->id,
+                ],
+            ],
+        ]);
+
+        // Assert
+        $response->assertStatus(201);
+
+        $this->assertDatabaseHas('appointments', [
+            'business_id' => $business->id,
+            'staff_id' => $staff->id,
+            'customer_id' => $customer->id,
+            'start_datetime' => "{$localDate} 00:00:00",
+            'end_datetime' => "{$localDate} 00:45:00",
+        ]);
+    }
+
+
     /*
     |==========================================================================
     | APPOINTMENT INDEX() API TEST
@@ -1114,7 +1269,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
         $otherBusiness = Business::factory()->create();
 
         $staff = Staff::factory()->create([
@@ -1234,7 +1391,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -1348,7 +1507,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -1465,7 +1626,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -1578,7 +1741,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -1689,7 +1854,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $this->actingAs($user, 'sanctum');
 
@@ -1726,7 +1893,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $this->actingAs($user, 'sanctum');
 
@@ -1759,7 +1928,9 @@ class AppointmentTest extends TestCase
         | CREATE
         |--------------------------------------------------------------------------
         */
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         /*
         |--------------------------------------------------------------------------
@@ -1786,7 +1957,9 @@ class AppointmentTest extends TestCase
         | CREATE
         |--------------------------------------------------------------------------
         */
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
         $otherBusiness = Business::factory()->create();
 
         $user = User::factory()->create([
@@ -1823,7 +1996,9 @@ class AppointmentTest extends TestCase
         | CREATE
         |--------------------------------------------------------------------------
         */
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
         $otherBusiness = Business::factory()->create();
 
         //now, test with a staff member
@@ -1940,7 +2115,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $this->actingAs($user, 'sanctum');
 
@@ -1977,7 +2154,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $this->actingAs($user, 'sanctum');
 
@@ -2014,7 +2193,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $this->actingAs($user, 'sanctum');
 
@@ -2051,7 +2232,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $this->actingAs($user, 'sanctum');
 
@@ -2088,7 +2271,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -2192,7 +2377,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -2255,7 +2442,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -2318,7 +2507,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -2380,7 +2571,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -2439,7 +2632,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -2506,7 +2701,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -2580,7 +2777,9 @@ class AppointmentTest extends TestCase
             'role' => 'admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $otherBusiness = Business::factory()->create();
 
@@ -2695,7 +2894,9 @@ class AppointmentTest extends TestCase
         | CREATE
         |--------------------------------------------------------------------------
         */
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -2781,7 +2982,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -2927,7 +3130,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -2997,7 +3202,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -3064,7 +3271,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -3131,7 +3340,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -3198,7 +3409,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -3265,7 +3478,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -3333,7 +3548,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -3460,7 +3677,9 @@ class AppointmentTest extends TestCase
         | CREATE
         |--------------------------------------------------------------------------
         */
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -3556,7 +3775,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -3623,7 +3844,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -3686,7 +3909,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -3752,7 +3977,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -3816,7 +4043,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -3887,7 +4116,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -3956,7 +4187,9 @@ class AppointmentTest extends TestCase
             'role' => 'staff',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'user_id' => $staffUser->id,
@@ -4028,7 +4261,9 @@ class AppointmentTest extends TestCase
         | CREATE
         |---------------------------------------------
         */
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $user = User::factory()->create([
             'role' => 'super_admin',
@@ -4159,7 +4394,9 @@ class AppointmentTest extends TestCase
         | CREATE
         |---------------------------------------------
         */
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $user = User::factory()->create([
             'role' => 'super_admin',
@@ -4262,7 +4499,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -4386,7 +4625,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         //two staff members for the same business
         $originalStaff = Staff::factory()->create([
@@ -4517,7 +4758,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $originalStaff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -4629,7 +4872,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $otherBusiness = Business::factory()->create();
 
@@ -4746,7 +4991,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -4857,7 +5104,9 @@ class AppointmentTest extends TestCase
         | CREATE
         |--------------------------------------------------------------------------
         */
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
         $otherBusiness = Business::factory()->create();
 
         $businessAdmin = User::factory()->create([
@@ -4967,7 +5216,9 @@ class AppointmentTest extends TestCase
         | CREATE
         |--------------------------------------------------------------------------
         */
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
         $otherBusiness = Business::factory()->create();
 
         // Appointment belongs to Business A.
@@ -5079,7 +5330,9 @@ class AppointmentTest extends TestCase
         | CREATE
         |--------------------------------------------------------------------------
         */
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -5177,7 +5430,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -5272,7 +5527,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -5377,7 +5634,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -5475,7 +5734,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -5618,7 +5879,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -5727,7 +5990,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -5834,7 +6099,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -5941,7 +6208,9 @@ class AppointmentTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $staff = Staff::factory()->create([
             'business_id' => $business->id,
@@ -6036,6 +6305,159 @@ class AppointmentTest extends TestCase
         );
     }
 
+    // Ensure that the scheduled time after rescheduling an appointment is set as UTC in the database
+    public function test_rescheduling_appointment_stores_business_local_time_as_utc(): void
+    {
+        // Arrange
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => Carbon::parse('2026-10-24')->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        // Existing appointment: 09:00–09:45 local = 01:00–01:45 UTC.
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => '2026-10-24 01:00:00',
+            'end_datetime' => '2026-10-24 01:45:00',
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
+
+        // Act: reschedule to 10:00 AM Asia/Manila.
+        $response = $this->patchJson(
+            "/api/appointments/{$appointment->id}/reschedule",
+            [
+                'start_datetime' => '2026-10-24 10:00:00',
+            ]
+        );
+
+        // Assert
+        $response->assertOk();
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'start_datetime' => '2026-10-24 02:00:00',
+            'end_datetime' => '2026-10-24 02:45:00',
+        ]);
+    }
+
+    // Ensure that the scheduled time after rescheduling an appointment (now using Tokyo timezone) is set as UTC in the database
+    public function test_rescheduling_appointment_stores_tokyo_business_time_as_utc(): void
+    {
+        $user = User::factory()->create([
+            'role' => 'super_admin',
+        ]);
+
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Tokyo',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $customer = Customer::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $localDate = '2026-10-24';
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => Carbon::parse($localDate)->dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        // Existing appointment: 09:00 Tokyo = 00:00 UTC.
+        $originalStartUtc = Carbon::parse(
+            "{$localDate} 00:00:00",
+            'UTC'
+        );
+
+        $appointment = Appointment::create([
+            'business_id' => $business->id,
+            'customer_id' => $customer->id,
+            'staff_id' => $staff->id,
+            'start_datetime' => $originalStartUtc,
+            'end_datetime' => $originalStartUtc->copy()->addMinutes(45),
+            'status' => 'pending',
+        ]);
+
+        AppointmentService::create([
+            'appointment_id' => $appointment->id,
+            'service_id' => $service->id,
+            'price' => $service->price,
+            'currency' => $business->currency,
+            'duration_minutes' => $service->duration_minutes,
+            'buffer_minutes' => $service->buffer_minutes,
+        ]);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->patchJson(
+                "/api/appointments/{$appointment->id}/reschedule",
+                [
+                    'start_datetime' => "{$localDate} 10:00:00",
+                ]
+            );
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'start_datetime' => "{$localDate} 01:00:00",
+            'end_datetime' => "{$localDate} 01:45:00",
+        ]);
+    }
+   
     /*
     |==========================================================================
     | APPOINTMENT FINAL REGRESSION AND EDGE TESTS CASES
@@ -6050,7 +6472,9 @@ class AppointmentTest extends TestCase
             'role' => 'admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $user->businesses()->attach($business->id);
 
@@ -6086,7 +6510,9 @@ class AppointmentTest extends TestCase
             'role' => 'admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $user->businesses()->attach($business->id);
 
@@ -6123,7 +6549,9 @@ class AppointmentTest extends TestCase
             'role' => 'admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $user->businesses()->attach($business->id);
 
@@ -6262,7 +6690,9 @@ class AppointmentTest extends TestCase
             'role' => 'admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $user->businesses()->attach($business->id);
 
@@ -6376,7 +6806,9 @@ class AppointmentTest extends TestCase
             'role' => 'admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $user->businesses()->attach($business->id);
 
@@ -6439,7 +6871,9 @@ class AppointmentTest extends TestCase
             'role' => 'admin',
         ]);
 
-        $business = Business::factory()->create();
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
 
         $user->businesses()->attach($business->id);
 
