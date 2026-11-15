@@ -17,7 +17,7 @@ class ServiceController extends Controller
         | Authorization: Ensure that the user has permission to view the business before showing the list of services
         |--------------------------------------------------------------------------
         */
-        $this->authorize('view', $business);
+        $this->authorize('viewAny', [Service::class, $business]);
 
         return response()->json(
             [
@@ -34,10 +34,10 @@ class ServiceController extends Controller
     ) {
         /*
         |--------------------------------------------------------------------------
-        | Authorization: Ensure that the user has permission to view the business before creating a service
+        | Authorization: Ensure that the user has permission to create a service
         |--------------------------------------------------------------------------
         */
-        $this->authorize('view', $business);
+        $this->authorize('create', [Service::class, $business]);
 
         /*
         |--------------------------------------------------------------------------
@@ -69,7 +69,7 @@ class ServiceController extends Controller
         | Authorization: Ensure that the user has permission to view the business before showing a specific service
         |--------------------------------------------------------------------------
         */
-        $this->authorize('view', $business);
+        $this->authorize('view', $service);
 
         /*
         |--------------------------------------------------------------------------
@@ -96,7 +96,7 @@ class ServiceController extends Controller
         | Authorization: Ensure that the user has permission to view the business before updating a service
         |--------------------------------------------------------------------------
         */
-        $this->authorize('view', $business);
+        $this->authorize('update', $service);
 
         /*
         |--------------------------------------------------------------------------
@@ -129,17 +129,16 @@ class ServiceController extends Controller
         | Authorization: Ensure that the user has permission to view the business before showing a customer
         |--------------------------------------------------------------------------
         */
-        $this->authorize('view', $business);
+        $this->authorize('delete', $service);
 
         /*
         |--------------------------------------------------------------------------
         | Ensure that the service belongs to the business before operating this, if not return 404
         |--------------------------------------------------------------------------
         */
-        abort_unless(
-            $service->business_id === $business->id,
-            404
-        );
+        $service = $business->services()
+            ->whereKey($service->getKey())
+            ->firstOrFail();
 
         $service->delete();
 
