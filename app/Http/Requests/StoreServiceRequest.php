@@ -14,8 +14,11 @@ class StoreServiceRequest extends FormRequest
     {
         $business = $this->route('business');
 
-        return $business instanceof Business
-            && $this->user()->can('update', $business);
+        return $business !== null
+            && $this->user()->can('create', [
+                \App\Models\Service::class,
+                $business,
+            ]);
     }
 
     /**
