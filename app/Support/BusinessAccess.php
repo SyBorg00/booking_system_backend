@@ -21,7 +21,7 @@ class BusinessAccess
         }
 
         if ($user->role === 'staff') {
-            return $user->staffBusinesses()->where('business_id', $businessId)->exists();
+            return $user->staff()->where('business_id', $businessId)->exists();
         }
 
         return false;
