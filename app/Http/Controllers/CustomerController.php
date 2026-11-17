@@ -15,10 +15,10 @@ class CustomerController extends Controller
     {
         /*
         |--------------------------------------------------------------------------
-        | Authorization: Ensure that the user has permission to view the business before fetching customers
+        | Authorization: Ensure that the user has permission to view the customers
         |--------------------------------------------------------------------------
         */
-        $this->authorize('view', $business);
+        $this->authorize('viewAny', [Customer::class, $business]);
 
         return response()->json(
             [
@@ -34,10 +34,10 @@ class CustomerController extends Controller
     ) {
         /*
         |--------------------------------------------------------------------------
-        | Authorization: Ensure that the user has permission to view the business before creating a customer
+        | Authorization: Ensure that the user has permission to create a customer for the business
         |--------------------------------------------------------------------------
         */
-        $this->authorize('view', $business);
+        $this->authorize('create', [Customer::class, $business]);
 
         /*
         |--------------------------------------------------------------------------
@@ -64,20 +64,21 @@ class CustomerController extends Controller
     ) {
         /*
         |--------------------------------------------------------------------------
-        | Authorization: Ensure that the user has permission to view the business before showing a customer
+        | Authorization: Ensure that the user has permission to view the customer
         |--------------------------------------------------------------------------
         */
-        $this->authorize('view', $business);
+        $this->authorize('view', $customer);
 
         /*
         |--------------------------------------------------------------------------
-        | Ensure that the customer belongs to the business before operating this, if not return 404
+        | Perform ownership check to ensure that the customer belongs to the business, if not return 404  
         |--------------------------------------------------------------------------
         */
-        abort_unless(
-            $customer->business_id === $business->id,
-            404
-        );
+        $customer = $business->customers()
+            ->whereKey($customer->id)
+            ->firstOrFail();
+
+        
 
         return response()->json([
             "data" => $customer
@@ -92,20 +93,20 @@ class CustomerController extends Controller
     ) {
         /*
         |--------------------------------------------------------------------------
-        | Authorization: Ensure that the user has permission to view the business before updating a customer
+        | Authorization: Ensure that the user has permission to update the customer before proceeding
         |--------------------------------------------------------------------------
         */
-        $this->authorize('view', $business);
+        $this->authorize('update', $customer);
 
         /*
         |--------------------------------------------------------------------------
-        | Ensure that the customer belongs to the business before operating this, if not return 404
+        | Perform ownership check to ensure that the customer belongs to the business, if not return 404  
         |--------------------------------------------------------------------------
         */
-        abort_unless(
-            $customer->business_id === $business->id,
-            404
-        );
+        $customer = $business->customers()
+            ->whereKey($customer->id)
+            ->firstOrFail();
+
 
         $customer->update(
             $request->validated()
@@ -126,20 +127,19 @@ class CustomerController extends Controller
     ) {
         /*
         |--------------------------------------------------------------------------
-        | Authorization: Ensure that the user has permission to view the business before deleting a customer
+        | Authorization: Ensure that the user has permission to delete the customer before proceeding
         |--------------------------------------------------------------------------
         */
-        $this->authorize('view', $business);
+        $this->authorize('delete', $customer);
 
         /*
         |--------------------------------------------------------------------------
-        | Ensure that the customer belongs to the business before operating this, if not return 404
+        | Perform ownership check to ensure that the customer belongs to the business, if not return 404  
         |--------------------------------------------------------------------------
         */
-        abort_unless(
-            $customer->business_id === $business->id,
-            404
-        );
+        $customer = $business->customers()
+            ->whereKey($customer->id)
+            ->firstOrFail();
 
         $customer->delete();
 

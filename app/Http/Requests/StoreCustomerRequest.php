@@ -12,8 +12,14 @@ class StoreCustomerRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
-    }
+        $business = $this->route('business');
+
+        return $business instanceof \App\Models\Business
+            && $this->user()->can('create', [
+                \App\Models\Customer::class,
+                $business,
+            ]);
+    }   
 
     /**
      * Get the validation rules that apply to the request.

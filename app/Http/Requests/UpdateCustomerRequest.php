@@ -12,7 +12,21 @@ class UpdateCustomerRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $business = $this->route('business');
+        $customer = $this->route('customer');
+
+        if (
+            !$business instanceof \App\Models\Business ||
+            !$customer instanceof \App\Models\Customer
+        ) {
+            return false;
+        }
+
+        if ($customer->business_id !== $business->id) {
+            return false;
+        }
+
+        return $this->user()->can('update', $customer);
     }
 
     /**
