@@ -13,10 +13,22 @@ class UpdateServiceRequest extends FormRequest
     public function authorize(): bool
     {
         $business = $this->route('business');
+        $service = $this->route('service');
 
-        return $business instanceof Business
-            && $this->user()->can('update', $business);
+        if (
+            !$business instanceof \App\Models\Business ||
+            !$service instanceof \App\Models\Service
+        ) {
+            return false;
+        }
+
+        if ($service->business_id !== $business->id) {
+            return false;
+        }
+
+        return $this->user()->can('update', $service);
     }
+    
 
     /**
      * Get the validation rules that apply to the request.
