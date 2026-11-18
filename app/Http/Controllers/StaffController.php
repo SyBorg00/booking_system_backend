@@ -20,14 +20,16 @@ class StaffController extends Controller
     {
         /*
         |--------------------------------------------------------------------------
-        | Authorization: Ensure that the user has permission to view the business before creating a customer
+        | Authorization: Ensure that the user has permission to view the staff model
         |--------------------------------------------------------------------------
         */
-        $this->authorize('view', $business);
+        $this->authorize('viewAny', [Staff::class, $business]);
 
         return response()->json(
             [
-                'data' => $business->staff()->with('user')->get()
+                'data' => $business->staff()
+                    ->with('user')
+                    ->get()
             ]
         );
     }
@@ -39,10 +41,10 @@ class StaffController extends Controller
     ) {
         /*
         |--------------------------------------------------------------------------
-        | Authorization: Ensure that the user has permission to view the business before creating a customer
+        | Authorization: Ensure that the user has permission to create a staff member
         |--------------------------------------------------------------------------
         */
-        $this->authorize('view', $business);
+        $this->authorize('create', [Staff::class, $business]);
 
         $staff = $business->staff()->create(
             $request->validated()
@@ -64,15 +66,15 @@ class StaffController extends Controller
     ) {
         /*
         |--------------------------------------------------------------------------
-        | Authorization: Ensure that the user has permission to view the business before showing a customer
+        | Ownership check and Authorization: Ensure that the staff member belongs to the business and that 
+        | the user has permission to view the staff member
         |--------------------------------------------------------------------------
         */
-        $this->authorize('view', $business);
+        $staff = $business->staff()
+            ->whereKey($staff->id)
+            ->firstOrFail();
 
-        abort_unless(
-            $staff->business_id === $business->id,
-            404
-        );
+        $this->authorize('view', $staff);
 
         return response()->json(
             [
@@ -89,15 +91,15 @@ class StaffController extends Controller
     ) {
         /*
         |--------------------------------------------------------------------------
-        | Authorization: Ensure that the user has permission to view the business before updating a customer
+        | Ownership check and Authorization: Ensure that the staff member belongs to the business and that 
+        | the user has permission to update the staff member
         |--------------------------------------------------------------------------
         */
-        $this->authorize('view', $business);
+        $staff = $business->staff()
+            ->whereKey($staff->id)
+            ->firstOrFail();
 
-        abort_unless(
-            $staff->business_id ===  $business->id,
-            404
-        );
+        $this->authorize('update', $staff);
 
         $validated = $request->validated();
 
@@ -107,10 +109,14 @@ class StaffController extends Controller
                 'last_name' => $validated['last_name'],
             ]);
     
-            $staff->update([
-                'phone' => $validated['phone'] ?? null,
-                'position' => $validated['position'],
-            ]);
+            $staffData = array_intersect_key(
+                $validated,
+                array_flip(['phone', 'position'])
+            );
+
+            if (!empty($staffData)) {
+                $staff->update($staffData);
+            }
         });
     
         $staff->load('user');
@@ -130,14 +136,15 @@ class StaffController extends Controller
     ) {
         /*
         |--------------------------------------------------------------------------
-        | Authorization: Ensure that the user has permission to view the business before deleting a customer
+        | Ownership check and Authorization: Ensure that the staff member belongs to the business and that 
+        | the user has permission to delete the staff member
         |--------------------------------------------------------------------------
         */
-        $this->authorize('view', $business);
-        abort_unless(
-            $staff->business_id === $business->id,
-            404
-        );
+        $staff = $business->staff()
+            ->whereKey($staff->id)
+            ->firstOrFail();
+
+        $this->authorize('delete', $staff);
 
         $staff->delete();
 

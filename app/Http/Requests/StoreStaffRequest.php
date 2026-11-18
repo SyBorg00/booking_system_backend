@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreStaffRequest extends FormRequest
 {
@@ -12,7 +13,13 @@ class StoreStaffRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $business = $this->route('business');
+
+        return $business instanceof \App\Models\Business
+            && $this->user()->can('create', [
+                \App\Models\Staff::class,
+                $business,
+            ]);
     }
 
     /**
@@ -29,6 +36,9 @@ class StoreStaffRequest extends FormRequest
                 'required',
                 'integer',
                 'exists:users,id',
+                
+                // Ensure the user_id is unique in the staff table
+                Rule::unique('staff', 'user_id'),
             ],
 
             'phone' => [

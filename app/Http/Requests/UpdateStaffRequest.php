@@ -12,8 +12,22 @@ class UpdateStaffRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
-    }
+        $business = $this->route('business');
+        $staff = $this->route('staff');
+
+        if (
+            !$business instanceof \App\Models\Business ||
+            !$staff instanceof \App\Models\Staff
+        ) {
+            return false;
+        }
+
+        if ($staff->business_id !== $business->id) {
+            return false;
+        }
+
+        return $this->user()->can('update', $staff);
+}
 
     /**
      * Get the validation rules that apply to the request.
@@ -33,13 +47,6 @@ class UpdateStaffRequest extends FormRequest
                 'required',
                 'string',
                 'max:255',
-            ],
-            
-            'user_id' => [
-                'sometimes',
-                'required',
-                'integer',
-                'exists:users,id',
             ],
 
             'phone' => [
