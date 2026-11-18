@@ -6,6 +6,7 @@ use App\Http\Requests\StoreBusinessRequest;
 use App\Http\Requests\UpdateBusinessRequest;
 use App\Models\Business;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class BusinessController extends Controller
 {
@@ -57,7 +58,23 @@ class BusinessController extends Controller
 
         $validated = $request->validated();
 
-        $business = Business::create($validated);
+        $business = DB::transaction(function () use ($validated) {
+
+            // Create the business.
+            $business = Business::create($validated);
+
+            // Initialize all seven days as closed.
+            foreach (range(0, 6) as $day) {
+                $business->businessHours()->create([
+                    'day_of_week' => $day,
+                    'open_time' => null,
+                    'close_time' => null,
+                    'is_closed' => true,
+                ]);
+            }
+
+            return $business;
+        });
 
         return response()->json([
             'message' => 'Business created successfully.',
