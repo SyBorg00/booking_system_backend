@@ -11,6 +11,7 @@ use App\Http\Controllers\AvailabilityController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BusinessController;
+use App\Http\Controllers\BusinessHourController;
 use App\Http\Controllers\StaffServiceController;
 use App\Http\Controllers\UserController;
 
@@ -66,8 +67,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
     //Prefixing the business route to avoid repetition and to group related routes together
     Route::prefix('businesses/{business}')->group(function () {
+        /*
+        ====================
+        BUSINESS HOURS SUB-SECTION 
+        ====================
+        */
+        //fetch the complete weekly schedule for a specific business
+        Route::get('hours', [BusinessHourController::class, 'index']);
 
-
+        //update the complete weekly schedule for a specific business
+        Route::put('hours', [BusinessHourController::class, 'update']);
 
         /*
         ====================
