@@ -22,29 +22,19 @@ class StaffHourController extends Controller
 {
 
     //load the staff hours for a specific staff member in a business
-    public function index(
-        Business $business,
-        Staff $staff
-    ) {
-        /*
-        |--------------------------------------------------------------------------
-        | Authorization: Ensure that the user has permission to view the business before showing a customer
-        |--------------------------------------------------------------------------
-        */
-        $this->authorize('view', $business);
+    public function index(Business $business, Staff $staff)
+    {
+        $staff = $business->staff()
+            ->whereKey($staff->id)
+            ->firstOrFail();
 
-        abort_unless(
-            $staff->business_id ===  $business->id,
-            404
-        );
+        $this->authorize('viewAny', [StaffHour::class, $staff]);
 
-        return response()->json(
-            [
-                'data' => $staff->hours()
-                    ->orderBy('day_of_week')
-                    ->get()
-            ]
-        );
+        return response()->json([
+            'data' => $staff->hours()
+                ->orderBy('day_of_week')
+                ->get()
+        ]);
     }
 
     //store a new staff hour for a specific staff member in a business
@@ -53,29 +43,20 @@ class StaffHourController extends Controller
         Business $business,
         Staff $staff
     ) {
-        /*
-        |--------------------------------------------------------------------------
-        | Authorization: Ensure that the user has permission to view the business before showing a customer
-        |--------------------------------------------------------------------------
-        */
-        $this->authorize('view', $business);
+        $staff = $business->staff()
+            ->whereKey($staff->id)
+            ->firstOrFail();
 
-        abort_unless(
-            $staff->business_id ===  $business->id,
-            404
-        );
+        $this->authorize('create', [StaffHour::class, $staff]);
 
         $staffHour = $staff->hours()->create(
             $request->validated()
         );
 
-        return response()->json(
-            [
-                'message' => 'Staff hour created successfully.',
-                'data' => $staffHour
-            ],
-            201
-        );
+        return response()->json([
+            'message' => 'Staff hour created successfully.',
+            'data' => $staffHour
+        ], 201);
     }
 
     //show a specific staff hour for a specific staff member in a business
@@ -86,20 +67,19 @@ class StaffHourController extends Controller
     ) {
         /*
         |--------------------------------------------------------------------------
-        | Authorization: Ensure that the user has permission to view the business before showing a customer
+        | Ownership checking and authorization: Ensure that the staff member belongs to the business and the staff 
+        | hour belongs to the staff member before showing the staff hour
         |--------------------------------------------------------------------------
         */
-        $this->authorize('view', $business);
+        $staff = $business->staff()
+        ->whereKey($staff->id)
+        ->firstOrFail();
 
-        abort_unless(
-            $staff->business_id ===  $business->id,
-            404
-        );
+        $staffHour = $staff->hours()
+            ->whereKey($staffHour->id)
+            ->firstOrFail();
 
-        abort_unless(
-            $staffHour->staff_id ===  $staff->id,
-            404
-        );
+        $this->authorize('view', $staffHour);
 
         return response()->json(
             [
@@ -117,20 +97,21 @@ class StaffHourController extends Controller
     ) {
         /*
         |--------------------------------------------------------------------------
-        | Authorization: Ensure that the user has permission to view the business before showing a customer
+        | Ownership checking and authorization: Ensure that the staff member belongs to the business and the staff 
+        | hour belongs to the staff member before updating the staff hour
         |--------------------------------------------------------------------------
         */
-        $this->authorize('view', $business);
+        $staff = $business->staff()
+            ->whereKey($staff->id)
+            ->firstOrFail();
 
-        abort_unless(
-            $staff->business_id ===  $business->id,
-            404
-        );
+        $staffHour = $staff->hours()
+            ->whereKey($staffHour->id)
+            ->firstOrFail();
 
-        abort_unless(
-            $staffHour->staff_id ===  $staff->id,
-            404
-        );
+        $this->authorize('update', $staffHour);
+
+        $staffHour->update($request->validated());
 
         $staffHour->update(
             $request->validated()
@@ -152,20 +133,21 @@ class StaffHourController extends Controller
     ) {
         /*
         |--------------------------------------------------------------------------
-        | Authorization: Ensure that the user has permission to view the business before showing a customer
+        | Ownership checking and authorization: Ensure that the staff member belongs to the business and the staff 
+        | hour belongs to the staff member before deleting the staff hour
         |--------------------------------------------------------------------------
         */
-        $this->authorize('view', $business);
+        $staff = $business->staff()
+            ->whereKey($staff->id)
+            ->firstOrFail();
 
-        abort_unless(
-            $staff->business_id ===  $business->id,
-            404
-        );
+        $staffHour = $staff->hours()
+            ->whereKey($staffHour->id)
+            ->firstOrFail();
 
-        abort_unless(
-            $staffHour->staff_id ===  $staff->id,
-            404
-        );
+        $this->authorize('delete', $staffHour);
+
+        $staffHour->delete();
 
         $staffHour->delete();
 

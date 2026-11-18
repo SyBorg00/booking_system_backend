@@ -14,7 +14,16 @@ class StoreStaffHourRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $business = $this->route('business');
+        $staff = $this->route('staff');
+
+        return $business instanceof \App\Models\Business
+            && $staff instanceof \App\Models\Staff
+            && $staff->business_id === $business->id
+            && $this->user()->can('create', [
+                \App\Models\StaffHour::class,
+                $staff,
+            ]);
     }
 
     /**

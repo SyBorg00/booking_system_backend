@@ -14,7 +14,16 @@ class UpdateStaffHourRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        $business = $this->route('business');
+        $staff = $this->route('staff');
+        $staffHour = $this->route('staffHour');
+
+        return $business instanceof \App\Models\Business
+            && $staff instanceof \App\Models\Staff
+            && $staffHour instanceof \App\Models\StaffHour
+            && $staff->business_id === $business->id
+            && $staffHour->staff_id === $staff->id
+            && $this->user()->can('update', $staffHour);
     }
 
     /**
