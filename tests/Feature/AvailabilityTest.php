@@ -13,6 +13,7 @@ use App\Models\StaffHour;
 use App\Models\StaffTimeOff;
 use App\Models\AppointmentService;
 use App\Services\AvailabilityService;
+use App\Models\BusinessHour;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -3644,4 +3645,342 @@ class AvailabilityTest extends TestCase
             'Availability should resume after the time-off period.'
         );
     }
+
+    /*
+    |==========================================================================
+    | BUSINESS HOUR HANDLING CASES
+    |==========================================================================
+    */
+
+    // Test that an appointment is rejected if it falls outside the business operating hours, even if the staff is available.
+    public function test_appointment_is_rejected_outside_business_hours(): void
+    {
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $date = '2026-11-23'; // Monday
+
+        // Business operates from 9 AM to 6 PM.
+        BusinessHour::create([
+            'business_id' => $business->id,
+            'day_of_week' => Carbon::parse($date)->dayOfWeek,
+            'open_time' => '09:00:00',
+            'close_time' => '18:00:00',
+            'is_closed' => false,
+        ]);
+
+        // Staff works longer than the business operating hours.
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => Carbon::parse($date)->dayOfWeek,
+            'start_time' => '08:00:00',
+            'end_time' => '20:00:00',
+            'is_off' => false,
+        ]);
+
+        // Request an appointment starting exactly at closing time.
+        $start = Carbon::parse(
+            "$date 18:00:00",
+            'Asia/Manila'
+        )->utc();
+
+        $result = app(AvailabilityService::class)->validateSlot(
+            $staff,
+            $start,
+            30
+        );
+
+        $this->assertSame(
+            'The selected time is outside the business operating hours.',
+            $result
+        );
+    }
+
+    // Test that an appointment is rejected if the business is closed on that day, even if the staff is available.
+    public function test_appointment_is_rejected_when_business_is_closed(): void
+    {
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $date = '2026-11-22'; // Sunday
+
+        // Business is closed on Sunday.
+        BusinessHour::create([
+            'business_id' => $business->id,
+            'day_of_week' => Carbon::parse($date)->dayOfWeek,
+            'open_time' => null,
+            'close_time' => null,
+            'is_closed' => true,
+        ]);
+
+        // Staff is still scheduled to work on Sunday.
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => Carbon::parse($date)->dayOfWeek,
+            'start_time' => '08:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $start = Carbon::parse(
+            "$date 10:00:00",
+            'Asia/Manila'
+        )->utc();
+
+        $result = app(AvailabilityService::class)->validateSlot(
+            $staff,
+            $start,
+            30
+        );
+
+        $this->assertSame(
+            'The business is closed on the selected day.',
+            $result
+        );
+    }
+
+    // Test that the available slots start at the business opening time, even if the staff starts earlier.
+    public function test_available_slots_start_at_business_opening_when_staff_starts_earlier(): void
+    {
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 0,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $date = '2026-11-23'; // Monday
+        $dayOfWeek = Carbon::parse($date)->dayOfWeek;
+
+        BusinessHour::create([
+            'business_id' => $business->id,
+            'day_of_week' => $dayOfWeek,
+            'open_time' => '09:00:00',
+            'close_time' => '18:00:00',
+            'is_closed' => false,
+        ]);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $dayOfWeek,
+            'start_time' => '08:00:00',
+            'end_time' => '17:00:00',
+            'is_off' => false,
+        ]);
+
+        $slots = app(AvailabilityService::class)
+            ->getAvailableSlotsForServices(
+                $staff,
+                collect([$service]),
+                $date
+            );
+
+        $this->assertNotEmpty($slots);
+
+        $this->assertSame('09:00', $slots[0]['start']);
+
+        // No generated slot should begin before business opening.
+        foreach ($slots as $slot) {
+            $this->assertGreaterThanOrEqual(
+                '09:00',
+                $slot['start']
+            );
+
+            $this->assertLessThanOrEqual(
+                '18:00',
+                $slot['end']
+            );
+        }
+    }
+
+    // Test that the available slots end at the business closing time, even if the staff works later.
+    public function test_available_slots_end_at_business_closing_when_staff_works_later(): void
+    {
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 0,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $date = '2026-11-23'; // Monday
+        $dayOfWeek = Carbon::parse($date)->dayOfWeek;
+
+        BusinessHour::create([
+            'business_id' => $business->id,
+            'day_of_week' => $dayOfWeek,
+            'open_time' => '09:00:00',
+            'close_time' => '18:00:00',
+            'is_closed' => false,
+        ]);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $dayOfWeek,
+            'start_time' => '10:00:00',
+            'end_time' => '20:00:00',
+            'is_off' => false,
+        ]);
+
+        $slots = app(AvailabilityService::class)
+            ->getAvailableSlotsForServices(
+                $staff,
+                collect([$service]),
+                $date
+            );
+
+        $this->assertNotEmpty($slots);
+
+        $lastSlot = end($slots);
+
+        $this->assertSame('17:30', $lastSlot['start']);
+        $this->assertSame('18:00', $lastSlot['end']);
+
+        // No generated slot should extend beyond business closing.
+        foreach ($slots as $slot) {
+            $this->assertLessThanOrEqual(
+                '18:00',
+                $slot['end']
+            );
+        }
+    }
+
+    /*
+    |==========================================================================
+    | EDGE TEST CASES
+    |==========================================================================
+    */
+
+    // Test that the service buffer is respected and does not allow a slot to extend beyond business hours.
+    public function test_service_buffer_must_fit_within_business_hours(): void
+    {
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $service = Service::factory()->create([
+            'business_id' => $business->id,
+            'duration_minutes' => 30,
+            'buffer_minutes' => 15,
+        ]);
+
+        $staff->services()->attach($service->id);
+
+        $date = '2026-11-23';
+        $dayOfWeek = Carbon::parse($date)->dayOfWeek;
+
+        BusinessHour::create([
+            'business_id' => $business->id,
+            'day_of_week' => $dayOfWeek,
+            'open_time' => '09:00:00',
+            'close_time' => '18:00:00',
+            'is_closed' => false,
+        ]);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $dayOfWeek,
+            'start_time' => '09:00:00',
+            'end_time' => '18:00:00',
+            'is_off' => false,
+        ]);
+
+        $slots = app(AvailabilityService::class)
+            ->getAvailableSlotsForServices(
+                $staff,
+                collect([$service]),
+                $date
+            );
+
+        $this->assertNotEmpty($slots);
+
+        $lastSlot = end($slots);
+
+        $this->assertSame('17:15', $lastSlot['start']);
+        $this->assertSame('18:00', $lastSlot['end']);
+    }
+
+    // Test that the validateSlot method uses the business's local weekday instead of the UTC weekday when checking availability.
+    public function test_validate_slot_uses_business_local_weekday_instead_of_utc_weekday(): void
+    {
+        $business = Business::factory()->create([
+            'timezone' => 'Asia/Manila',
+        ]);
+
+        $staff = Staff::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        // Monday in the business's local timezone.
+        $date = '2026-11-23';
+        $dayOfWeek = Carbon::parse($date)->dayOfWeek;
+
+        BusinessHour::create([
+            'business_id' => $business->id,
+            'day_of_week' => $dayOfWeek,
+            'open_time' => '00:00:00',
+            'close_time' => '02:00:00',
+            'is_closed' => false,
+        ]);
+
+        StaffHour::create([
+            'staff_id' => $staff->id,
+            'day_of_week' => $dayOfWeek,
+            'start_time' => '00:00:00',
+            'end_time' => '02:00:00',
+            'is_off' => false,
+        ]);
+
+        // Monday 00:00 in Manila is Sunday 16:00 UTC.
+        $startUtc = Carbon::parse(
+            '2026-11-23 00:00:00',
+            'Asia/Manila'
+        )->utc();
+
+        $this->assertSame(
+            '2026-11-22',
+            $startUtc->toDateString()
+        );
+
+        $result = app(AvailabilityService::class)->validateSlot(
+            $staff,
+            $startUtc,
+            30
+        );
+
+        $this->assertNull($result);
+    }
+
 }
