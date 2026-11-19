@@ -12,149 +12,150 @@ use Illuminate\Support\Collection;
 class AvailabilityService
 {
 
-    //Get available appointment slots for a staff member. (NOT USED AS OF THE MOMENT)
-    public function getAvailableSlots(
-        Staff $staff,
-        Service $service,
-        string $date
-    ): array {
+    // //Get available appointment slots for a staff member. (NOT USED AS OF THE MOMENT)
 
-        /*
-        |--------------------------------------------------------------------------
-        | Verify that the staff member provides this service.
-        |--------------------------------------------------------------------------
-        */
-        if (!$this->staffProvidesServices($staff, collect([$service]))) {
-            return [];
-        }
-        $date = Carbon::parse($date);
+    // public function getAvailableSlots(
+    //     Staff $staff,
+    //     Service $service,
+    //     string $date
+    // ): array {
 
-
-
-
-        //The requested day's boundaries.
-        $dayStart = $date->copy()->startOfDay();
-        $dayEnd = $date->copy()->addDay()->startOfDay();
-
-        /*
-         * Laravel's Carbon dayOfWeek:
-         *
-         * 0 = Sunday
-         * 1 = Monday
-         * ...
-         * 6 = Saturday
-         * just in case one is too lazy to scavenge for notes
-         */
-        $dayOfWeek = $date->dayOfWeek;
-
-        //Get the staff member's working hours for this particular day.
-        $staffHours = $staff->hours()
-            ->where('day_of_week', $dayOfWeek)
-            ->where('is_off', false)
-            ->orderBy('start_time')
-            ->get();
-
-        if ($staffHours->isEmpty()) {
-            return [];
-        }
+    //     /*
+    //     |--------------------------------------------------------------------------
+    //     | Verify that the staff member provides this service.
+    //     |--------------------------------------------------------------------------
+    //     */
+    //     if (!$this->staffProvidesServices($staff, collect([$service]))) {
+    //         return [];
+    //     }
+    //     $date = Carbon::parse($date);
 
 
-        //Get all time-off records that overlap with the requested day.
-        $timeOffs = $staff->timeOffs()
-            ->where('start_datetime', '<', $dayEnd)
-            ->where('end_datetime', '>', $dayStart)
-            ->get();
 
 
-        //Get appointments that actually block the staff member's schedule. pending and confirmed appointments are considered blocking.
-        $appointments = Appointment::where('staff_id', $staff->id)
-            ->where('start_datetime', '<', $dayEnd)
-            ->where('end_datetime', '>', $dayStart)
-            ->whereIn('status', [
-                'pending',
-                'confirmed',
-            ])
-            ->get();
+    //     //The requested day's boundaries.
+    //     $dayStart = $date->copy()->startOfDay();
+    //     $dayEnd = $date->copy()->addDay()->startOfDay();
+
+    //     /*
+    //      * Laravel's Carbon dayOfWeek:
+    //      *
+    //      * 0 = Sunday
+    //      * 1 = Monday
+    //      * ...
+    //      * 6 = Saturday
+    //      * just in case one is too lazy to scavenge for notes
+    //      */
+    //     $dayOfWeek = $date->dayOfWeek;
+
+    //     //Get the staff member's working hours for this particular day.
+    //     $staffHours = $staff->hours()
+    //         ->where('day_of_week', $dayOfWeek)
+    //         ->where('is_off', false)
+    //         ->orderBy('start_time')
+    //         ->get();
+
+    //     if ($staffHours->isEmpty()) {
+    //         return [];
+    //     }
 
 
-        //Calculate how long the requested service occupies the staff member.
-
-        /* Example:
-         * duration = 60
-         * buffer   = 15
-
-         * total = 75 minutes
-         */
-        $slotDuration =
-            $service->duration_minutes +
-            $service->buffer_minutes;
-
-        if ($slotDuration <= 0) {
-            return [];
-        }
-
-        $availableSlots = [];
+    //     //Get all time-off records that overlap with the requested day.
+    //     $timeOffs = $staff->timeOffs()
+    //         ->where('start_datetime', '<', $dayEnd)
+    //         ->where('end_datetime', '>', $dayStart)
+    //         ->get();
 
 
-        //Generate slots for each working period.
-        foreach ($staffHours as $hours) {
-
-            $periodStart = Carbon::parse(
-                $date->toDateString() . ' ' . $hours->start_time
-            );
-
-            $periodEnd = Carbon::parse(
-                $date->toDateString() . ' ' . $hours->end_time
-            );
-
-
-            //Generate candidate slots
-            $slot = $periodStart->copy();
-
-            while (
-                $slot->copy()
-                ->addMinutes($slotDuration)
-                ->lte($periodEnd)
-            ) {
-                $slotEnd = $slot->copy()
-                    ->addMinutes($slotDuration);
+    //     //Get appointments that actually block the staff member's schedule. pending and confirmed appointments are considered blocking.
+    //     $appointments = Appointment::where('staff_id', $staff->id)
+    //         ->where('start_datetime', '<', $dayEnd)
+    //         ->where('end_datetime', '>', $dayStart)
+    //         ->whereIn('status', [
+    //             'pending',
+    //             'confirmed',
+    //         ])
+    //         ->get();
 
 
-                //Check time-off conflicts.
-                $conflictsWithTimeOff = $timeOffs->contains(
-                    function ($timeOff) use ($slot, $slotEnd) {
-                        return $slot->lt($timeOff->end_datetime)
-                            && $slotEnd->gt($timeOff->start_datetime);
-                    }
-                );
+    //     //Calculate how long the requested service occupies the staff member.
+
+    //     /* Example:
+    //      * duration = 60
+    //      * buffer   = 15
+
+    //      * total = 75 minutes
+    //      */
+    //     $slotDuration =
+    //         $service->duration_minutes +
+    //         $service->buffer_minutes;
+
+    //     if ($slotDuration <= 0) {
+    //         return [];
+    //     }
+
+    //     $availableSlots = [];
 
 
-                //Check confirmed/pending appointment conflicts.
-                $conflictsWithAppointment = $appointments->contains(
-                    function ($appointment) use ($slot, $slotEnd) {
-                        return $slot->lt($appointment->end_datetime)
-                            && $slotEnd->gt($appointment->start_datetime);
-                    }
-                );
+    //     //Generate slots for each working period.
+    //     foreach ($staffHours as $hours) {
 
-                //Only return slots that do not conflict with anything.
-                if (
-                    !$conflictsWithTimeOff &&
-                    !$conflictsWithAppointment
-                ) {
-                    $availableSlots[] = [
-                        'start' => $slot->format('H:i'),
-                        'end' => $slotEnd->format('H:i'),
-                    ];
-                }
+    //         $periodStart = Carbon::parse(
+    //             $date->toDateString() . ' ' . $hours->start_time
+    //         );
 
-                //Move to the next candidate slot. As of the moment, its just hardcoded to 15 minutes, though this should be business based dependent
-                $slot->addMinutes(15);
-            }
-        }
+    //         $periodEnd = Carbon::parse(
+    //             $date->toDateString() . ' ' . $hours->end_time
+    //         );
 
-        return $availableSlots;
-    }
+
+    //         //Generate candidate slots
+    //         $slot = $periodStart->copy();
+
+    //         while (
+    //             $slot->copy()
+    //             ->addMinutes($slotDuration)
+    //             ->lte($periodEnd)
+    //         ) {
+    //             $slotEnd = $slot->copy()
+    //                 ->addMinutes($slotDuration);
+
+
+    //             //Check time-off conflicts.
+    //             $conflictsWithTimeOff = $timeOffs->contains(
+    //                 function ($timeOff) use ($slot, $slotEnd) {
+    //                     return $slot->lt($timeOff->end_datetime)
+    //                         && $slotEnd->gt($timeOff->start_datetime);
+    //                 }
+    //             );
+
+
+    //             //Check confirmed/pending appointment conflicts.
+    //             $conflictsWithAppointment = $appointments->contains(
+    //                 function ($appointment) use ($slot, $slotEnd) {
+    //                     return $slot->lt($appointment->end_datetime)
+    //                         && $slotEnd->gt($appointment->start_datetime);
+    //                 }
+    //             );
+
+    //             //Only return slots that do not conflict with anything.
+    //             if (
+    //                 !$conflictsWithTimeOff &&
+    //                 !$conflictsWithAppointment
+    //             ) {
+    //                 $availableSlots[] = [
+    //                     'start' => $slot->format('H:i'),
+    //                     'end' => $slotEnd->format('H:i'),
+    //                 ];
+    //             }
+
+    //             //Move to the next candidate slot. As of the moment, its just hardcoded to 15 minutes, though this should be business based dependent
+    //             $slot->addMinutes(15);
+    //         }
+    //     }
+
+    //     return $availableSlots;
+    // }
 
     // Similar to the one above but for multiple services. (CURRENTLY IN USE)
     public function getAvailableSlotsForServices(
@@ -181,9 +182,29 @@ class AvailabilityService
 
         // Interpret the requested date in the business timezone.
         $localDate = Carbon::parse($date, $timezone)->startOfDay();
-
         $dayOfWeek = $localDate->dayOfWeek;
+        
+        // Check if the business is open on this day.
+        $businessHours = $business->businessHours()
+            ->where('day_of_week', $dayOfWeek)
+            ->first();
 
+        if (!$businessHours || $businessHours->is_closed) {
+            return [];
+        }
+
+        $businessOpen = Carbon::parse(
+            $localDate->toDateString() . ' ' . $businessHours->open_time,
+            $timezone
+        );
+
+        $businessClose = Carbon::parse(
+            $localDate->toDateString() . ' ' . $businessHours->close_time,
+            $timezone
+        );
+
+
+        // Get the staff member's working hours for this particular day.
         $staffHours = $staff->hours()
             ->where('day_of_week', $dayOfWeek)
             ->where('is_off', false)
@@ -194,9 +215,10 @@ class AvailabilityService
             return [];
         }
 
+        
         /*
         |--------------------------------------------------------------------------
-        | Calculate total duration, including service buffers.
+        | Calculate total service duration, including the buffers.
         |--------------------------------------------------------------------------
         */
         $slotDuration = $services->sum(function ($service) {
@@ -216,15 +238,36 @@ class AvailabilityService
         |--------------------------------------------------------------------------
         */
         foreach ($staffHours as $hours) {
-            $periodStart = Carbon::parse(
+
+            $staffStart = Carbon::parse(
                 $localDate->toDateString() . ' ' . $hours->start_time,
                 $timezone
             );
 
-            $periodEnd = Carbon::parse(
+            $staffEnd = Carbon::parse(
                 $localDate->toDateString() . ' ' . $hours->end_time,
                 $timezone
             );
+
+
+            // Determine the overlapping working period. ( For example, if the business opens at 9 AM and the staff starts at 10 AM, the effective start 
+            // time is 10 AM and vice versa for the end time. )
+            $periodStart = $staffStart->greaterThan($businessOpen)
+                ? $staffStart->copy()
+                : $businessOpen->copy();
+
+            $periodEnd = $staffEnd->lessThan($businessClose)
+                ? $staffEnd->copy()
+                : $businessClose->copy();
+
+
+            // Skip periods that cannot accommodate the requested services.
+            if (
+                $periodStart->gte($periodEnd) ||
+                $periodStart->copy()->addMinutes($slotDuration)->gt($periodEnd)
+            ) {
+                continue;
+            }
 
             $slot = $periodStart->copy();
 
@@ -333,9 +376,6 @@ class AvailabilityService
         $startUtc = $start->copy()->utc();
         $endUtc = $startUtc->copy()->addMinutes($durationMinutes);
 
-        //disregard
-        $end = $start->copy()->addMinutes($durationMinutes);
-
         /*
         |--------------------------------------------------------------------------
         | Determine the relevant local working day.
@@ -347,11 +387,44 @@ class AvailabilityService
 
         /*
         |--------------------------------------------------------------------------
+        | Check business operating hours
+        |--------------------------------------------------------------------------
+        */
+        $businessHours = $business->businessHours()
+            ->where('day_of_week', $dayOfWeek)
+            ->first();
+
+        if (
+            !$businessHours ||
+            $businessHours->is_closed ||
+            !$businessHours->open_time ||
+            !$businessHours->close_time
+        ) {
+            return 'The business is closed on the selected day.';
+        }
+
+        $businessOpenUtc = Carbon::parse(
+            $localDate . ' ' . $businessHours->open_time,
+            $timezone
+        )->utc();
+
+        $businessCloseUtc = Carbon::parse(
+            $localDate . ' ' . $businessHours->close_time,
+            $timezone
+        )->utc();
+
+        $fitsBusinessHours = $startUtc->gte($businessOpenUtc)
+            && $endUtc->lte($businessCloseUtc);
+
+        if (!$fitsBusinessHours) {
+            return 'The selected time is outside the business operating hours.';
+        }
+
+        /*
+        |--------------------------------------------------------------------------
         | Check working hours
         |--------------------------------------------------------------------------
         */
-        //disregard
-        $dayOfWeek = $start->dayOfWeek;
 
         $staffHours = $staff->hours()
             ->where('day_of_week', $dayOfWeek)
